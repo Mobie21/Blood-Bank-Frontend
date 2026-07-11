@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useTenant } from "@/lib/tenant-context";
+import { MOCK_USERS, findUser } from "@/lib/mock-users";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -18,15 +20,32 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { setRole } = useTenant();
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("aris.thorne@stjude.med");
+  const [password, setPassword] = useState("hospital123");
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setTimeout(() => {
-      toast.success("Signed in");
-      navigate({ to: "/dashboard" });
-    }, 500);
+      const user = findUser(email, password);
+      if (!user) {
+        setLoading(false);
+        toast.error("Invalid credentials", {
+          description: "Use one of the demo accounts listed below.",
+        });
+        return;
+      }
+      setRole(user.role);
+      toast.success(`Welcome, ${user.name}`);
+      navigate({ to: user.role === "super_admin" ? "/admin" : "/dashboard" });
+    }, 400);
+  };
+
+  const fillCreds = (mail: string, pass: string) => {
+    setEmail(mail);
+    setPassword(pass);
   };
 
   return (
@@ -94,7 +113,8 @@ function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  defaultValue="aris.thorne@stjude.med"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-9"
                   required
                 />
@@ -109,7 +129,14 @@ function LoginPage() {
               </div>
               <div className="relative mt-1.5">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input id="password" type="password" defaultValue="••••••••" className="pl-9" required />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-9"
+                  required
+                />
               </div>
             </div>
           </div>
@@ -122,9 +149,32 @@ function LoginPage() {
             {loading ? "Signing in..." : "Sign in"}
           </Button>
 
-          <p className="mt-6 text-xs text-muted-foreground text-center">
-            Demo build · switch roles from the top bar after signing in.
-          </p>
+          <div className="mt-8 rounded-lg ring-1 ring-black/5 bg-card p-4">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
+              Demo accounts
+            </div>
+            <ul className="mt-3 space-y-2">
+              {MOCK_USERS.map((u) => (
+                <li key={u.email}>
+                  <button
+                    type="button"
+                    onClick={() => fillCreds(u.email, u.password)}
+                    className="w-full text-left rounded-md px-3 py-2 hover:bg-muted/60 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-foreground">{u.name}</span>
+                      <span className="text-[10px] uppercase tracking-wider text-blood font-semibold">
+                        {u.role.replace("_", " ")}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground font-mono">
+                      {u.email} · {u.password}
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         </form>
       </div>
     </div>
