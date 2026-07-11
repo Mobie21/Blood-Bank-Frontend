@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { HOSPITALS } from "@/lib/mock-data";
+import { useState } from "react";
+import { HOSPITALS, type Hospital } from "@/lib/mock-data";
 import { InstitutionTable } from "./_shell.admin.hospitals";
 
 export const Route = createFileRoute("/_shell/admin/laboratories")({
@@ -9,5 +10,19 @@ export const Route = createFileRoute("/_shell/admin/laboratories")({
       { name: "description", content: "Manage registered laboratories across the national network." },
     ],
   }),
-  component: () => <InstitutionTable title="Laboratories" items={HOSPITALS.filter((h) => h.type === "laboratory")} />,
+  component: LaboratoriesPage,
 });
+
+function LaboratoriesPage() {
+  const [items, setItems] = useState<Hospital[]>(
+    HOSPITALS.filter((h) => h.type === "laboratory"),
+  );
+  return (
+    <InstitutionTable
+      title="Laboratories"
+      type="laboratory"
+      items={items}
+      onAdd={(h) => setItems((prev) => [h, ...prev])}
+    />
+  );
+}
