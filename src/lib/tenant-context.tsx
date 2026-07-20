@@ -87,6 +87,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setRole: (role) => {
         try {
           localStorage.setItem(STORAGE_KEY, role);
+          localStorage.setItem("haemocentral.auth", "1");
         } catch {
           /* ignore */
         }
