@@ -174,7 +174,7 @@ export function InstitutionTable({
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        variant="destructive"
+                        className="text-destructive focus:text-destructive"
                         onClick={() => setDeleting(h)}
                       >
                         <Trash2 className="size-4" /> Delete
