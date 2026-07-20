@@ -1,10 +1,11 @@
 import { Bell, Search } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useTenant, type Role } from "@/lib/tenant-context";
+import { useTenant } from "@/lib/tenant-context";
 
 export function TopBar({ title, badge }: { title?: string; badge?: string }) {
-  const { user, setRole } = useTenant();
+  const { user } = useTenant();
   const displayTitle = title ?? user.tenant.name;
+
   const displayBadge =
     badge ??
     (user.role === "super_admin"
