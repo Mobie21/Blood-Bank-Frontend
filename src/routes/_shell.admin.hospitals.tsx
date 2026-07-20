@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, MoreHorizontal } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Power, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { HOSPITALS, totalStock, BLOOD_GROUPS, type Hospital, type BloodGroup } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -33,7 +50,7 @@ function HospitalsPage() {
       title="Hospitals"
       type="hospital"
       items={items}
-      onAdd={(h) => setItems((prev) => [h, ...prev])}
+      setItems={setItems}
     />
   );
 }
@@ -42,15 +59,40 @@ export function InstitutionTable({
   title,
   type,
   items,
-  onAdd,
+  setItems,
 }: {
   title: string;
   type: "hospital" | "laboratory";
   items: Hospital[];
-  onAdd: (h: Hospital) => void;
+  setItems: React.Dispatch<React.SetStateAction<Hospital[]>>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Hospital | null>(null);
+  const [deleting, setDeleting] = useState<Hospital | null>(null);
   const noun = title.slice(0, -1).toLowerCase();
+
+  const openAdd = () => {
+    setEditing(null);
+    setDialogOpen(true);
+  };
+  const openEdit = (h: Hospital) => {
+    setEditing(h);
+    setDialogOpen(true);
+  };
+  const toggleStatus = (h: Hospital) => {
+    setItems((prev) =>
+      prev.map((x) =>
+        x.id === h.id ? { ...x, status: x.status === "active" ? "inactive" : "active" } : x,
+      ),
+    );
+    toast.success(`${h.name} ${h.status === "active" ? "deactivated" : "activated"}`);
+  };
+  const confirmDelete = () => {
+    if (!deleting) return;
+    setItems((prev) => prev.filter((x) => x.id !== deleting.id));
+    toast.success(`${deleting.name} removed`);
+    setDeleting(null);
+  };
 
   return (
     <>
@@ -59,10 +101,7 @@ export function InstitutionTable({
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm text-muted-foreground mt-1">{items.length} registered</p>
         </div>
-        <Button
-          className="bg-blood hover:bg-blood-dark text-white"
-          onClick={() => setOpen(true)}
-        >
+        <Button className="bg-blood hover:bg-blood-dark text-white" onClick={openAdd}>
           <Plus className="size-4" /> Add {noun}
         </Button>
       </div>
@@ -81,6 +120,13 @@ export function InstitutionTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
+            {items.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  No {noun}s yet. Click "Add {noun}" to register one.
+                </td>
+              </tr>
+            )}
             {items.map((h) => (
               <tr key={h.id} className="hover:bg-muted/30">
                 <td className="px-6 py-3.5">
@@ -109,9 +155,32 @@ export function InstitutionTable({
                   </span>
                 </td>
                 <td className="px-6 py-3.5 text-right">
-                  <button className="text-muted-foreground hover:text-foreground">
-                    <MoreHorizontal className="size-4" />
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Actions"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(h)}>
+                        <Pencil className="size-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleStatus(h)}>
+                        <Power className="size-4" />
+                        {h.status === "active" ? "Deactivate" : "Activate"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleting(h)}
+                      >
+                        <Trash2 className="size-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </td>
               </tr>
             ))}
@@ -119,44 +188,73 @@ export function InstitutionTable({
         </table>
       </div>
 
-      <AddInstitutionDialog
-        open={open}
-        onOpenChange={setOpen}
+      <InstitutionDialog
+        key={editing?.id ?? "new"}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         type={type}
         noun={noun}
-        onAdd={(h) => {
-          onAdd(h);
-          toast.success(`${h.name} registered`);
-          setOpen(false);
+        editing={editing}
+        onSubmit={(h) => {
+          if (editing) {
+            setItems((prev) => prev.map((x) => (x.id === h.id ? h : x)));
+            toast.success(`${h.name} updated`);
+          } else {
+            setItems((prev) => [h, ...prev]);
+            toast.success(`${h.name} registered`);
+          }
+          setDialogOpen(false);
         }}
       />
+
+      <AlertDialog open={!!deleting} onOpenChange={(v) => !v && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this {noun} and its association from the network.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-blood hover:bg-blood-dark text-white"
+              onClick={confirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
-function AddInstitutionDialog({
+function InstitutionDialog({
   open,
   onOpenChange,
   type,
   noun,
-  onAdd,
+  editing,
+  onSubmit,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   type: "hospital" | "laboratory";
   noun: string;
-  onAdd: (h: Hospital) => void;
+  editing: Hospital | null;
+  onSubmit: (h: Hospital) => void;
 }) {
   const [form, setForm] = useState({
-    code: "",
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    province: "",
-    country: "Kenya",
-    bloodDeptContact: "",
+    code: editing?.code ?? "",
+    name: editing?.name ?? "",
+    email: editing?.email ?? "",
+    phone: editing?.phone ?? "",
+    address: editing?.address ?? "",
+    city: editing?.city ?? "",
+    province: editing?.province ?? "",
+    country: editing?.country ?? "Kenya",
+    bloodDeptContact: editing?.bloodDeptContact ?? "",
   });
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -169,23 +267,12 @@ function AddInstitutionDialog({
       {} as Record<BloodGroup, number>,
     );
     const prefix = type === "hospital" ? "h_" : "l_";
-    onAdd({
-      id: `${prefix}${Date.now()}`,
+    onSubmit({
+      id: editing?.id ?? `${prefix}${Date.now()}`,
       type,
-      status: "active",
-      stock: emptyStock,
+      status: editing?.status ?? "active",
+      stock: editing?.stock ?? emptyStock,
       ...form,
-    });
-    setForm({
-      code: "",
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      city: "",
-      province: "",
-      country: "Kenya",
-      bloodDeptContact: "",
     });
   };
 
@@ -193,9 +280,13 @@ function AddInstitutionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Register {noun}</DialogTitle>
+          <DialogTitle>
+            {editing ? `Edit ${noun}` : `Register ${noun}`}
+          </DialogTitle>
           <DialogDescription>
-            Add a new {noun} to the national HaemoCentral network.
+            {editing
+              ? `Update details for this ${noun}.`
+              : `Add a new ${noun} to the national HaemoCentral network.`}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
@@ -219,15 +310,11 @@ function AddInstitutionDialog({
             onChange={set("bloodDeptContact")}
           />
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" className="bg-blood hover:bg-blood-dark text-white">
-              Register {noun}
+              {editing ? "Save changes" : `Register ${noun}`}
             </Button>
           </DialogFooter>
         </form>

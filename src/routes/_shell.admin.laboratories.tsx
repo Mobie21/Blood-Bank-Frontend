@@ -22,7 +22,7 @@ function LaboratoriesPage() {
       title="Laboratories"
       type="laboratory"
       items={items}
-      onAdd={(h) => setItems((prev) => [h, ...prev])}
+      setItems={setItems}
     />
   );
 }
