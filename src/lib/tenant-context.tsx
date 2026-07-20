@@ -87,6 +87,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setRole: (role) => {
         try {
           localStorage.setItem(STORAGE_KEY, role);
+          localStorage.setItem("haemocentral.auth", "1");
         } catch {
           /* ignore */
         }
@@ -108,9 +109,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       signOut: () => {
         try {
           localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem("haemocentral.auth");
         } catch {
           /* ignore */
         }
+        setUser(DEFAULT_USER);
       },
     }),
     [user],
