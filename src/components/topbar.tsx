@@ -35,17 +35,6 @@ export function TopBar({ title, badge }: { title?: string; badge?: string }) {
           />
         </div>
 
-        <select
-          value={user.role}
-          onChange={(e) => setRole(e.target.value as Role)}
-          className="text-xs bg-muted/60 border border-border rounded-md px-2 py-1.5 focus:outline-none"
-          aria-label="Demo role switcher"
-          title="Demo — switch role"
-        >
-          <option value="hospital_admin">Hospital Admin</option>
-          <option value="lab_admin">Lab Admin</option>
-          <option value="super_admin">Super Admin</option>
-        </select>
 
         <Link
           to="/notifications"
