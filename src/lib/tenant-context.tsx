@@ -108,9 +108,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       signOut: () => {
         try {
           localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem("haemocentral.auth");
         } catch {
           /* ignore */
         }
+        setUser(DEFAULT_USER);
       },
     }),
     [user],
