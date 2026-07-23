@@ -10,25 +10,25 @@ export interface MockUser {
 
 export const MOCK_USERS: MockUser[] = [
   {
-    email: "amara@haemocentral.gov",
+    email: "amara@haemocentral.gov.zw",
     password: "admin123",
-    name: "Amara Okonkwo",
+    name: "Amara Nyathi",
     role: "super_admin",
-    institution: "National Health Authority",
+    institution: "National Blood Service Zimbabwe",
   },
   {
-    email: "aris.thorne@stjude.med",
+    email: "tendai.chikomo@parirenyatwa.co.zw",
     password: "hospital123",
-    name: "Dr. Aris Thorne",
+    name: "Dr. Tendai Chikomo",
     role: "hospital_admin",
-    institution: "St. Jude Medical Center",
+    institution: "Parirenyatwa Group of Hospitals",
   },
   {
-    email: "aisha@meridian.lab",
+    email: "chipo@lancet.co.zw",
     password: "lab123",
-    name: "Aisha Bakari",
+    name: "Chipo Marufu",
     role: "lab_admin",
-    institution: "Meridian Diagnostics Lab",
+    institution: "Lancet Clinical Laboratories",
   },
 ];
 
