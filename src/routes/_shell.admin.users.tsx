@@ -52,11 +52,11 @@ interface SysUser {
 }
 
 const INITIAL: SysUser[] = [
-  { id: "u1", name: "Amara Okonkwo", email: "amara@haemocentral.gov", role: "Super Admin", tenant: "National Health Authority", status: "active" },
-  { id: "u2", name: "Dr. Aris Thorne", email: "aris@stjude.med", role: "Hospital Admin", tenant: "St. Jude Medical Center", status: "active" },
-  { id: "u3", name: "Dr. Linda Kariuki", email: "linda@metrogen.med", role: "Hospital Admin", tenant: "Metropolitan General", status: "active" },
-  { id: "u4", name: "Aisha Bakari", email: "aisha@meridian.lab", role: "Lab Admin", tenant: "Meridian Diagnostics", status: "active" },
-  { id: "u5", name: "Peter Njoroge", email: "peter@pathway.lab", role: "Lab Admin", tenant: "Pathway Reference Lab", status: "inactive" },
+  { id: "u1", name: "Amara Nyathi", email: "amara@haemocentral.gov.zw", role: "Super Admin", tenant: "National Blood Service Zimbabwe", status: "active" },
+  { id: "u2", name: "Dr. Tendai Chikomo", email: "tendai.chikomo@parirenyatwa.co.zw", role: "Hospital Admin", tenant: "Parirenyatwa Group of Hospitals", status: "active" },
+  { id: "u3", name: "Dr. Rutendo Moyo", email: "rutendo@smch.co.zw", role: "Hospital Admin", tenant: "Sally Mugabe Central Hospital", status: "active" },
+  { id: "u4", name: "Chipo Marufu", email: "chipo@lancet.co.zw", role: "Lab Admin", tenant: "Lancet Clinical Laboratories", status: "active" },
+  { id: "u5", name: "Tawanda Sibanda", email: "tawanda@psmas.co.zw", role: "Lab Admin", tenant: "PSMAS Medlab Bulawayo", status: "inactive" },
 ];
 
 export const Route = createFileRoute("/_shell/admin/users")({

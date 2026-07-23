@@ -22,7 +22,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const { setRole } = useTenant();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("aris.thorne@stjude.med");
+  const [email, setEmail] = useState("tendai.chikomo@parirenyatwa.co.zw");
   const [password, setPassword] = useState("hospital123");
 
   const submit = (e: React.FormEvent) => {
