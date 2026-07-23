@@ -1,8 +1,44 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, MoreHorizontal } from "lucide-react";
+import { useState } from "react";
+import { Plus, MoreHorizontal, Pencil, Power, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { STAFF } from "@/lib/mock-data";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { STAFF, type StaffMember } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_shell/staff")({
   head: () => ({
@@ -14,15 +50,45 @@ export const Route = createFileRoute("/_shell/staff")({
   component: StaffPage,
 });
 
+type StaffRole = StaffMember["role"];
+
 function StaffPage() {
+  const [staff, setStaff] = useState<StaffMember[]>(STAFF);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<StaffMember | null>(null);
+  const [deleting, setDeleting] = useState<StaffMember | null>(null);
+
+  const openAdd = () => {
+    setEditing(null);
+    setDialogOpen(true);
+  };
+  const openEdit = (s: StaffMember) => {
+    setEditing(s);
+    setDialogOpen(true);
+  };
+  const toggleStatus = (s: StaffMember) => {
+    setStaff((prev) =>
+      prev.map((x) =>
+        x.id === s.id ? { ...x, status: x.status === "active" ? "inactive" : "active" } : x,
+      ),
+    );
+    toast.success(`${s.name} ${s.status === "active" ? "suspended" : "reinstated"}`);
+  };
+  const confirmDelete = () => {
+    if (!deleting) return;
+    setStaff((prev) => prev.filter((x) => x.id !== deleting.id));
+    toast.success(`${deleting.name} removed`);
+    setDeleting(null);
+  };
+
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
-          <p className="text-sm text-muted-foreground mt-1">{STAFF.length} members</p>
+          <p className="text-sm text-muted-foreground mt-1">{staff.length} members</p>
         </div>
-        <Button className="bg-blood hover:bg-blood-dark text-white">
+        <Button className="bg-blood hover:bg-blood-dark text-white" onClick={openAdd}>
           <Plus className="size-4" /> Add staff member
         </Button>
       </div>
@@ -40,8 +106,19 @@ function StaffPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {STAFF.map((s) => (
-              <tr key={s.id} className="hover:bg-muted/30">
+            {staff.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                  No staff members yet. Click "Add staff member" to add one.
+                </td>
+              </tr>
+            )}
+            {staff.map((s) => (
+              <tr
+                key={s.id}
+                className="hover:bg-muted/30 cursor-pointer"
+                onClick={() => openEdit(s)}
+              >
                 <td className="px-6 py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="size-8 rounded-full bg-blood/10 grid place-items-center text-xs font-semibold text-blood">
@@ -65,19 +142,217 @@ function StaffPage() {
                         : "bg-muted text-muted-foreground",
                     )}
                   >
-                    {s.status}
+                    {s.status === "active" ? "active" : "suspended"}
                   </span>
                 </td>
-                <td className="px-6 py-3.5 text-right">
-                  <button className="text-muted-foreground hover:text-foreground">
-                    <MoreHorizontal className="size-4" />
-                  </button>
+                <td className="px-6 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Actions"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => openEdit(s)}>
+                        <Pencil className="size-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleStatus(s)}>
+                        <Power className="size-4" />
+                        {s.status === "active" ? "Suspend" : "Reinstate"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleting(s)}
+                      >
+                        <Trash2 className="size-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <StaffDialog
+        key={editing?.id ?? "new"}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        editing={editing}
+        onSubmit={(s) => {
+          if (editing) {
+            setStaff((prev) => prev.map((x) => (x.id === s.id ? s : x)));
+            toast.success(`${s.name} updated`);
+          } else {
+            setStaff((prev) => [s, ...prev]);
+            toast.success(`${s.name} added`);
+          }
+          setDialogOpen(false);
+        }}
+        onSuspend={
+          editing
+            ? () => {
+                toggleStatus(editing);
+                setDialogOpen(false);
+              }
+            : undefined
+        }
+        onDelete={
+          editing
+            ? () => {
+                setDialogOpen(false);
+                setDeleting(editing);
+              }
+            : undefined
+        }
+      />
+
+      <AlertDialog open={!!deleting} onOpenChange={(v) => !v && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this staff member from your institution.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-blood hover:bg-blood-dark text-white"
+              onClick={confirmDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
+  );
+}
+
+function StaffDialog({
+  open,
+  onOpenChange,
+  editing,
+  onSubmit,
+  onSuspend,
+  onDelete,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  editing: StaffMember | null;
+  onSubmit: (s: StaffMember) => void;
+  onSuspend?: () => void;
+  onDelete?: () => void;
+}) {
+  const [form, setForm] = useState({
+    name: editing?.name ?? "",
+    email: editing?.email ?? "",
+    phone: editing?.phone ?? "",
+    department: editing?.department ?? "Blood Bank",
+    position: editing?.position ?? "",
+    role: editing?.role ?? ("staff" as StaffRole),
+  });
+
+  const set =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      id: editing?.id ?? `s_${Date.now()}`,
+      status: editing?.status ?? "active",
+      ...form,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{editing ? "Edit staff member" : "Add staff member"}</DialogTitle>
+          <DialogDescription>
+            {editing
+              ? "Update this staff member's details, or suspend / remove their account."
+              : "Add a new staff member to your institution."}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <Label className="text-xs">Full name</Label>
+            <Input className="mt-1.5" required value={form.name} onChange={set("name")} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Email</Label>
+              <Input className="mt-1.5" type="email" required value={form.email} onChange={set("email")} />
+            </div>
+            <div>
+              <Label className="text-xs">Phone</Label>
+              <Input className="mt-1.5" required value={form.phone} onChange={set("phone")} placeholder="+263 772 000 000" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Department</Label>
+              <Input className="mt-1.5" required value={form.department} onChange={set("department")} />
+            </div>
+            <div>
+              <Label className="text-xs">Position</Label>
+              <Input className="mt-1.5" required value={form.position} onChange={set("position")} />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Role</Label>
+            <Select
+              value={form.role}
+              onValueChange={(v) => setForm((f) => ({ ...f, role: v as StaffRole }))}
+            >
+              <SelectTrigger className="mt-1.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hospital_admin">Hospital Admin</SelectItem>
+                <SelectItem value="staff">Staff</SelectItem>
+                <SelectItem value="technician">Technician</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-between sm:gap-2">
+            {editing ? (
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onSuspend}>
+                  {editing.status === "active" ? "Suspend" : "Reinstate"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={onDelete}
+                >
+                  <Trash2 className="size-4" /> Delete
+                </Button>
+              </div>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-blood hover:bg-blood-dark text-white">
+                {editing ? "Save changes" : "Add staff member"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

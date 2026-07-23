@@ -253,7 +253,7 @@ function InstitutionDialog({
     address: editing?.address ?? "",
     city: editing?.city ?? "",
     province: editing?.province ?? "",
-    country: editing?.country ?? "Kenya",
+    country: editing?.country ?? "Zimbabwe",
     bloodDeptContact: editing?.bloodDeptContact ?? "",
   });
 

@@ -20,31 +20,32 @@ export interface CurrentUser {
 
 const DEFAULT_USER: CurrentUser = {
   id: "u_001",
-  name: "Dr. Aris Thorne",
-  email: "aris.thorne@stjude.med",
+  name: "Dr. Tendai Chikomo",
+  email: "tendai.chikomo@parirenyatwa.co.zw",
   role: "hospital_admin",
   tenant: {
     id: "h_001",
-    name: "St. Jude Medical Center",
+    name: "Parirenyatwa Group of Hospitals",
     type: "hospital",
-    city: "Nairobi",
-    province: "Nairobi County",
+    city: "Harare",
+    province: "Harare",
   },
 };
 
 const SUPER_ADMIN: CurrentUser = {
   id: "u_super",
-  name: "Amara Okonkwo",
-  email: "amara@haemocentral.gov",
+  name: "Amara Nyathi",
+  email: "amara@haemocentral.gov.zw",
   role: "super_admin",
   tenant: {
     id: "gov",
-    name: "National Health Authority",
+    name: "National Blood Service Zimbabwe",
     type: "hospital",
-    city: "Nairobi",
+    city: "Harare",
     province: "—",
   },
 };
+
 
 interface TenantContextValue {
   user: CurrentUser;
@@ -69,10 +70,10 @@ export function TenantProvider({ children }: { children: ReactNode }) {
           role: "lab_admin",
           tenant: {
             id: "l_001",
-            name: "Meridian Diagnostics Lab",
+            name: "Lancet Clinical Laboratories",
             type: "laboratory",
-            city: "Mombasa",
-            province: "Coast",
+            city: "Harare",
+            province: "Harare",
           },
         });
       else setUser(DEFAULT_USER);
@@ -98,10 +99,10 @@ export function TenantProvider({ children }: { children: ReactNode }) {
             role: "lab_admin",
             tenant: {
               id: "l_001",
-              name: "Meridian Diagnostics Lab",
+              name: "Lancet Clinical Laboratories",
               type: "laboratory",
-              city: "Mombasa",
-              province: "Coast",
+              city: "Harare",
+              province: "Harare",
             },
           });
         else setUser(DEFAULT_USER);
