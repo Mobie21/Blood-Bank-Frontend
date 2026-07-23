@@ -313,7 +313,7 @@ function UserDialog({
             <Input
               className="mt-1.5"
               required
-              placeholder="e.g. St. Jude Medical Center"
+              placeholder="e.g. Parirenyatwa Group of Hospitals"
               value={form.tenant}
               onChange={(e) => setForm((f) => ({ ...f, tenant: e.target.value }))}
             />
