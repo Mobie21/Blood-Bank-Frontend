@@ -4,8 +4,8 @@ export const Route = createFileRoute("/")({
   ssr: false,
   beforeLoad: () => {
     if (typeof window === "undefined") return;
-    const authed = window.localStorage.getItem("haemocentral.auth") === "1";
-    const role = window.localStorage.getItem("haemocentral.role");
+    const authed = window.sessionStorage.getItem("haemocentral.auth") === "1";
+    const role = window.sessionStorage.getItem("haemocentral.role");
     if (!authed) throw redirect({ to: "/login" });
     throw redirect({ to: role === "super_admin" ? "/admin" : "/dashboard" });
   },

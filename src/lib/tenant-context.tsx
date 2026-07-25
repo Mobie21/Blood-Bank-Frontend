@@ -62,7 +62,14 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY) as Role | null;
+      const authed = sessionStorage.getItem("haemocentral.auth") === "1";
+      if (!authed) {
+        // Clear any stale role from previous sessions
+        sessionStorage.removeItem(STORAGE_KEY);
+        setUser(DEFAULT_USER);
+        return;
+      }
+      const stored = sessionStorage.getItem(STORAGE_KEY) as Role | null;
       if (stored === "super_admin") setUser(SUPER_ADMIN);
       else if (stored === "lab_admin")
         setUser({
@@ -87,8 +94,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       user,
       setRole: (role) => {
         try {
-          localStorage.setItem(STORAGE_KEY, role);
-          localStorage.setItem("haemocentral.auth", "1");
+          sessionStorage.setItem(STORAGE_KEY, role);
+          sessionStorage.setItem("haemocentral.auth", "1");
         } catch {
           /* ignore */
         }
@@ -109,6 +116,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       },
       signOut: () => {
         try {
+          sessionStorage.removeItem(STORAGE_KEY);
+          sessionStorage.removeItem("haemocentral.auth");
+          // Also clear any legacy localStorage keys
           localStorage.removeItem(STORAGE_KEY);
           localStorage.removeItem("haemocentral.auth");
         } catch {
@@ -122,6 +132,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
 }
+
 
 export function useTenant() {
   const ctx = useContext(TenantContext);
