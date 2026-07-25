@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Plus, MoreHorizontal, Pencil, Power, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, MoreHorizontal, Pencil, Power, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { HOSPITALS } from "@/lib/mock-data";
 
 type SysRole = "Super Admin" | "Hospital Admin" | "Lab Admin";
 type Status = "active" | "inactive";
@@ -59,6 +60,8 @@ const INITIAL: SysUser[] = [
   { id: "u5", name: "Tawanda Sibanda", email: "tawanda@psmas.co.zw", role: "Lab Admin", tenant: "PSMAS Medlab Bulawayo", status: "inactive" },
 ];
 
+const STORE_KEY = "haemocentral.sys_users";
+
 export const Route = createFileRoute("/_shell/admin/users")({
   head: () => ({
     meta: [
@@ -70,10 +73,27 @@ export const Route = createFileRoute("/_shell/admin/users")({
 });
 
 function UsersPage() {
-  const [users, setUsers] = useState<SysUser[]>(INITIAL);
+  const [users, setUsers] = useState<SysUser[]>(() => {
+    if (typeof window === "undefined") return INITIAL;
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      return raw ? (JSON.parse(raw) as SysUser[]) : INITIAL;
+    } catch {
+      return INITIAL;
+    }
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SysUser | null>(null);
   const [deleting, setDeleting] = useState<SysUser | null>(null);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(users));
+    } catch {
+      /* ignore */
+    }
+  }, [users]);
 
   const openAdd = () => {
     setEditing(null);
@@ -98,16 +118,40 @@ function UsersPage() {
     setDeleting(null);
   };
 
+  const filtered = users.filter((u) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.tenant.toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">System Users</h1>
-          <p className="text-sm text-muted-foreground mt-1">{users.length} accounts</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {filtered.length} of {users.length} accounts
+          </p>
         </div>
-        <Button className="bg-blood hover:bg-blood-dark text-white" onClick={openAdd}>
-          <Plus className="size-4" /> Add user
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, email, institution…"
+              className="pl-9 w-64"
+            />
+          </div>
+          <Button className="bg-blood hover:bg-blood-dark text-white" onClick={openAdd}>
+            <Plus className="size-4" /> Add user
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-xl ring-1 ring-black/5 shadow-card overflow-x-auto">
@@ -118,19 +162,23 @@ function UsersPage() {
               <th className="px-6 py-3">Role</th>
               <th className="px-6 py-3">Institution</th>
               <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3"></th>
+              <th className="px-6 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {users.length === 0 && (
+            {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
-                  No users yet.
+                  No users match your search.
                 </td>
               </tr>
             )}
-            {users.map((u) => (
-              <tr key={u.id} className="hover:bg-muted/30">
+            {filtered.map((u) => (
+              <tr
+                key={u.id}
+                className="hover:bg-muted/30 cursor-pointer"
+                onClick={() => openEdit(u)}
+              >
                 <td className="px-6 py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="size-8 rounded-full bg-blood/10 grid place-items-center text-xs font-semibold text-blood">
@@ -160,33 +208,46 @@ function UsersPage() {
                     {u.status}
                   </span>
                 </td>
-                <td className="px-6 py-3.5 text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className="text-muted-foreground hover:text-foreground"
-                        aria-label="Actions"
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => openEdit(u)}>
-                        <Pencil className="size-4" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toggleStatus(u)}>
-                        <Power className="size-4" />
-                        {u.status === "active" ? "Deactivate" : "Activate"}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => setDeleting(u)}
-                      >
-                        <Trash2 className="size-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <td
+                  className="px-6 py-3.5 text-right"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2"
+                      onClick={() => openEdit(u)}
+                    >
+                      <Pencil className="size-3.5" /> Edit
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+                          aria-label="Actions"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(u)}>
+                          <Pencil className="size-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toggleStatus(u)}>
+                          <Power className="size-4" />
+                          {u.status === "active" ? "Deactivate" : "Activate"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleting(u)}
+                        >
+                          <Trash2 className="size-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -234,6 +295,8 @@ function UsersPage() {
   );
 }
 
+const NATIONAL_TENANT = "National Blood Service Zimbabwe";
+
 function UserDialog({
   open,
   onOpenChange,
@@ -252,12 +315,25 @@ function UserDialog({
     tenant: editing?.tenant ?? "",
   });
 
+  const hospitalOptions = HOSPITALS.filter((h) => h.type === "hospital").map((h) => h.name);
+  const labOptions = HOSPITALS.filter((h) => h.type === "laboratory").map((h) => h.name);
+
+  const tenantOptions =
+    form.role === "Super Admin"
+      ? [NATIONAL_TENANT]
+      : form.role === "Hospital Admin"
+        ? hospitalOptions
+        : labOptions;
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const tenant =
+      form.role === "Super Admin" ? NATIONAL_TENANT : form.tenant || tenantOptions[0] || "";
     onSubmit({
       id: editing?.id ?? `u_${Date.now()}`,
       status: editing?.status ?? "active",
       ...form,
+      tenant,
     });
   };
 
@@ -296,7 +372,13 @@ function UserDialog({
             <Label className="text-xs">Role</Label>
             <Select
               value={form.role}
-              onValueChange={(v) => setForm((f) => ({ ...f, role: v as SysRole }))}
+              onValueChange={(v) =>
+                setForm((f) => ({
+                  ...f,
+                  role: v as SysRole,
+                  tenant: v === "Super Admin" ? NATIONAL_TENANT : "",
+                }))
+              }
             >
               <SelectTrigger className="mt-1.5">
                 <SelectValue />
@@ -310,13 +392,25 @@ function UserDialog({
           </div>
           <div>
             <Label className="text-xs">Institution</Label>
-            <Input
-              className="mt-1.5"
-              required
-              placeholder="e.g. Parirenyatwa Group of Hospitals"
-              value={form.tenant}
-              onChange={(e) => setForm((f) => ({ ...f, tenant: e.target.value }))}
-            />
+            {form.role === "Super Admin" ? (
+              <Input className="mt-1.5" value={NATIONAL_TENANT} disabled />
+            ) : (
+              <Select
+                value={form.tenant}
+                onValueChange={(v) => setForm((f) => ({ ...f, tenant: v }))}
+              >
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue placeholder={`Select a ${form.role === "Hospital Admin" ? "hospital" : "laboratory"}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {tenantOptions.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
