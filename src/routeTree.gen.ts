@@ -20,7 +20,7 @@ import { Route as ShellProfileRouteImport } from './routes/_shell.profile'
 import { Route as ShellNotificationsRouteImport } from './routes/_shell.notifications'
 import { Route as ShellInventoryRouteImport } from './routes/_shell.inventory'
 import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
-import { Route as ShellAdminRouteImport } from './routes/_shell.admin'
+import { Route as ShellAdminIndexRouteImport } from './routes/_shell.admin.index'
 import { Route as ShellAdminUsersRouteImport } from './routes/_shell.admin.users'
 import { Route as ShellAdminLaboratoriesRouteImport } from './routes/_shell.admin.laboratories'
 import { Route as ShellAdminHospitalsRouteImport } from './routes/_shell.admin.hospitals'
@@ -79,31 +79,30 @@ const ShellDashboardRoute = ShellDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => ShellRoute,
 } as any)
-const ShellAdminRoute = ShellAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const ShellAdminIndexRoute = ShellAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellAdminUsersRoute = ShellAdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => ShellAdminRoute,
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => ShellRoute,
 } as any)
 const ShellAdminLaboratoriesRoute = ShellAdminLaboratoriesRouteImport.update({
-  id: '/laboratories',
-  path: '/laboratories',
-  getParentRoute: () => ShellAdminRoute,
+  id: '/admin/laboratories',
+  path: '/admin/laboratories',
+  getParentRoute: () => ShellRoute,
 } as any)
 const ShellAdminHospitalsRoute = ShellAdminHospitalsRouteImport.update({
-  id: '/hospitals',
-  path: '/hospitals',
-  getParentRoute: () => ShellAdminRoute,
+  id: '/admin/hospitals',
+  path: '/admin/hospitals',
+  getParentRoute: () => ShellRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/admin': typeof ShellAdminRouteWithChildren
   '/dashboard': typeof ShellDashboardRoute
   '/inventory': typeof ShellInventoryRoute
   '/notifications': typeof ShellNotificationsRoute
@@ -115,11 +114,11 @@ export interface FileRoutesByFullPath {
   '/admin/hospitals': typeof ShellAdminHospitalsRoute
   '/admin/laboratories': typeof ShellAdminLaboratoriesRoute
   '/admin/users': typeof ShellAdminUsersRoute
+  '/admin/': typeof ShellAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/admin': typeof ShellAdminRouteWithChildren
   '/dashboard': typeof ShellDashboardRoute
   '/inventory': typeof ShellInventoryRoute
   '/notifications': typeof ShellNotificationsRoute
@@ -131,13 +130,13 @@ export interface FileRoutesByTo {
   '/admin/hospitals': typeof ShellAdminHospitalsRoute
   '/admin/laboratories': typeof ShellAdminLaboratoriesRoute
   '/admin/users': typeof ShellAdminUsersRoute
+  '/admin': typeof ShellAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_shell': typeof ShellRouteWithChildren
   '/login': typeof LoginRoute
-  '/_shell/admin': typeof ShellAdminRouteWithChildren
   '/_shell/dashboard': typeof ShellDashboardRoute
   '/_shell/inventory': typeof ShellInventoryRoute
   '/_shell/notifications': typeof ShellNotificationsRoute
@@ -149,13 +148,13 @@ export interface FileRoutesById {
   '/_shell/admin/hospitals': typeof ShellAdminHospitalsRoute
   '/_shell/admin/laboratories': typeof ShellAdminLaboratoriesRoute
   '/_shell/admin/users': typeof ShellAdminUsersRoute
+  '/_shell/admin/': typeof ShellAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
-    | '/admin'
     | '/dashboard'
     | '/inventory'
     | '/notifications'
@@ -167,11 +166,11 @@ export interface FileRouteTypes {
     | '/admin/hospitals'
     | '/admin/laboratories'
     | '/admin/users'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/admin'
     | '/dashboard'
     | '/inventory'
     | '/notifications'
@@ -183,12 +182,12 @@ export interface FileRouteTypes {
     | '/admin/hospitals'
     | '/admin/laboratories'
     | '/admin/users'
+    | '/admin'
   id:
     | '__root__'
     | '/'
     | '/_shell'
     | '/login'
-    | '/_shell/admin'
     | '/_shell/dashboard'
     | '/_shell/inventory'
     | '/_shell/notifications'
@@ -200,6 +199,7 @@ export interface FileRouteTypes {
     | '/_shell/admin/hospitals'
     | '/_shell/admin/laboratories'
     | '/_shell/admin/users'
+    | '/_shell/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -287,55 +287,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellDashboardRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/_shell/admin': {
-      id: '/_shell/admin'
+    '/_shell/admin/': {
+      id: '/_shell/admin/'
       path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof ShellAdminRouteImport
+      fullPath: '/admin/'
+      preLoaderRoute: typeof ShellAdminIndexRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/admin/users': {
       id: '/_shell/admin/users'
-      path: '/users'
+      path: '/admin/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof ShellAdminUsersRouteImport
-      parentRoute: typeof ShellAdminRoute
+      parentRoute: typeof ShellRoute
     }
     '/_shell/admin/laboratories': {
       id: '/_shell/admin/laboratories'
-      path: '/laboratories'
+      path: '/admin/laboratories'
       fullPath: '/admin/laboratories'
       preLoaderRoute: typeof ShellAdminLaboratoriesRouteImport
-      parentRoute: typeof ShellAdminRoute
+      parentRoute: typeof ShellRoute
     }
     '/_shell/admin/hospitals': {
       id: '/_shell/admin/hospitals'
-      path: '/hospitals'
+      path: '/admin/hospitals'
       fullPath: '/admin/hospitals'
       preLoaderRoute: typeof ShellAdminHospitalsRouteImport
-      parentRoute: typeof ShellAdminRoute
+      parentRoute: typeof ShellRoute
     }
   }
 }
 
-interface ShellAdminRouteChildren {
-  ShellAdminHospitalsRoute: typeof ShellAdminHospitalsRoute
-  ShellAdminLaboratoriesRoute: typeof ShellAdminLaboratoriesRoute
-  ShellAdminUsersRoute: typeof ShellAdminUsersRoute
-}
-
-const ShellAdminRouteChildren: ShellAdminRouteChildren = {
-  ShellAdminHospitalsRoute: ShellAdminHospitalsRoute,
-  ShellAdminLaboratoriesRoute: ShellAdminLaboratoriesRoute,
-  ShellAdminUsersRoute: ShellAdminUsersRoute,
-}
-
-const ShellAdminRouteWithChildren = ShellAdminRoute._addFileChildren(
-  ShellAdminRouteChildren,
-)
-
 interface ShellRouteChildren {
-  ShellAdminRoute: typeof ShellAdminRouteWithChildren
   ShellDashboardRoute: typeof ShellDashboardRoute
   ShellInventoryRoute: typeof ShellInventoryRoute
   ShellNotificationsRoute: typeof ShellNotificationsRoute
@@ -344,10 +327,13 @@ interface ShellRouteChildren {
   ShellSearchRoute: typeof ShellSearchRoute
   ShellSettingsRoute: typeof ShellSettingsRoute
   ShellStaffRoute: typeof ShellStaffRoute
+  ShellAdminHospitalsRoute: typeof ShellAdminHospitalsRoute
+  ShellAdminLaboratoriesRoute: typeof ShellAdminLaboratoriesRoute
+  ShellAdminUsersRoute: typeof ShellAdminUsersRoute
+  ShellAdminIndexRoute: typeof ShellAdminIndexRoute
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
-  ShellAdminRoute: ShellAdminRouteWithChildren,
   ShellDashboardRoute: ShellDashboardRoute,
   ShellInventoryRoute: ShellInventoryRoute,
   ShellNotificationsRoute: ShellNotificationsRoute,
@@ -356,6 +342,10 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellSearchRoute: ShellSearchRoute,
   ShellSettingsRoute: ShellSettingsRoute,
   ShellStaffRoute: ShellStaffRoute,
+  ShellAdminHospitalsRoute: ShellAdminHospitalsRoute,
+  ShellAdminLaboratoriesRoute: ShellAdminLaboratoriesRoute,
+  ShellAdminUsersRoute: ShellAdminUsersRoute,
+  ShellAdminIndexRoute: ShellAdminIndexRoute,
 }
 
 const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
