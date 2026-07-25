@@ -4,7 +4,7 @@ import { StatCard } from "@/components/stat-card";
 import { HOSPITALS, ACTIVITY, BLOOD_GROUPS, totalStock } from "@/lib/mock-data";
 import { BloodDistribution } from "@/components/blood-distribution";
 
-export const Route = createFileRoute("/_shell/admin")({
+export const Route = createFileRoute("/_shell/admin/")({
   head: () => ({
     meta: [
       { title: "System Dashboard — HaemoCentral" },
