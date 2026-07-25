@@ -6,8 +6,15 @@ export const Route = createFileRoute("/_shell")({
   ssr: false,
   beforeLoad: ({ location }) => {
     if (typeof window === "undefined") return;
-    const authed = window.localStorage.getItem("haemocentral.auth") === "1";
+    const authed = window.sessionStorage.getItem("haemocentral.auth") === "1";
     if (!authed) {
+      // Clear any stale persisted auth from earlier versions
+      try {
+        window.localStorage.removeItem("haemocentral.auth");
+        window.localStorage.removeItem("haemocentral.role");
+      } catch {
+        /* ignore */
+      }
       throw redirect({
         to: "/login",
         search: { redirect: location.href },
