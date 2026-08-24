@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { addEnquiry } from "@/lib/enquiries";
+import { useTenant } from "@/lib/tenant-context";
 
 interface Props {
   open: boolean;
@@ -17,6 +19,7 @@ interface Props {
 type Mode = "enquire" | "order";
 
 export function EnquiryModal({ open, onOpenChange, hospital, group }: Props) {
+  const { user } = useTenant();
   const [mode, setMode] = useState<Mode>("enquire");
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
