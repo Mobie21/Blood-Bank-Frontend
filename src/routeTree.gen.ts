@@ -19,6 +19,7 @@ import { Route as ShellReportsRouteImport } from './routes/_shell.reports'
 import { Route as ShellProfileRouteImport } from './routes/_shell.profile'
 import { Route as ShellNotificationsRouteImport } from './routes/_shell.notifications'
 import { Route as ShellInventoryRouteImport } from './routes/_shell.inventory'
+import { Route as ShellEnquiriesRouteImport } from './routes/_shell.enquiries'
 import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
 import { Route as ShellAdminIndexRouteImport } from './routes/_shell.admin.index'
 import { Route as ShellAdminUsersRouteImport } from './routes/_shell.admin.users'
@@ -74,6 +75,11 @@ const ShellInventoryRoute = ShellInventoryRouteImport.update({
   path: '/inventory',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellEnquiriesRoute = ShellEnquiriesRouteImport.update({
+  id: '/enquiries',
+  path: '/enquiries',
+  getParentRoute: () => ShellRoute,
+} as any)
 const ShellDashboardRoute = ShellDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof ShellDashboardRoute
+  '/enquiries': typeof ShellEnquiriesRoute
   '/inventory': typeof ShellInventoryRoute
   '/notifications': typeof ShellNotificationsRoute
   '/profile': typeof ShellProfileRoute
@@ -120,6 +127,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/dashboard': typeof ShellDashboardRoute
+  '/enquiries': typeof ShellEnquiriesRoute
   '/inventory': typeof ShellInventoryRoute
   '/notifications': typeof ShellNotificationsRoute
   '/profile': typeof ShellProfileRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/_shell': typeof ShellRouteWithChildren
   '/login': typeof LoginRoute
   '/_shell/dashboard': typeof ShellDashboardRoute
+  '/_shell/enquiries': typeof ShellEnquiriesRoute
   '/_shell/inventory': typeof ShellInventoryRoute
   '/_shell/notifications': typeof ShellNotificationsRoute
   '/_shell/profile': typeof ShellProfileRoute
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard'
+    | '/enquiries'
     | '/inventory'
     | '/notifications'
     | '/profile'
@@ -172,6 +182,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/dashboard'
+    | '/enquiries'
     | '/inventory'
     | '/notifications'
     | '/profile'
@@ -189,6 +200,7 @@ export interface FileRouteTypes {
     | '/_shell'
     | '/login'
     | '/_shell/dashboard'
+    | '/_shell/enquiries'
     | '/_shell/inventory'
     | '/_shell/notifications'
     | '/_shell/profile'
@@ -280,6 +292,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellInventoryRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/enquiries': {
+      id: '/_shell/enquiries'
+      path: '/enquiries'
+      fullPath: '/enquiries'
+      preLoaderRoute: typeof ShellEnquiriesRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/_shell/dashboard': {
       id: '/_shell/dashboard'
       path: '/dashboard'
@@ -320,6 +339,7 @@ declare module '@tanstack/react-router' {
 
 interface ShellRouteChildren {
   ShellDashboardRoute: typeof ShellDashboardRoute
+  ShellEnquiriesRoute: typeof ShellEnquiriesRoute
   ShellInventoryRoute: typeof ShellInventoryRoute
   ShellNotificationsRoute: typeof ShellNotificationsRoute
   ShellProfileRoute: typeof ShellProfileRoute
@@ -335,6 +355,7 @@ interface ShellRouteChildren {
 
 const ShellRouteChildren: ShellRouteChildren = {
   ShellDashboardRoute: ShellDashboardRoute,
+  ShellEnquiriesRoute: ShellEnquiriesRoute,
   ShellInventoryRoute: ShellInventoryRoute,
   ShellNotificationsRoute: ShellNotificationsRoute,
   ShellProfileRoute: ShellProfileRoute,
@@ -358,3 +379,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

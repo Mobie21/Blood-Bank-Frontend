@@ -12,6 +12,7 @@ import {
   UserCog,
   LogOut,
   Activity,
+  Inbox,
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const HOSPITAL_NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inventory", label: "Blood Inventory", icon: Droplet },
   { to: "/search", label: "Blood Search", icon: Search },
+  { to: "/enquiries", label: "Enquiries", icon: Inbox },
   { to: "/staff", label: "Staff", icon: Users },
   { to: "/reports", label: "Reports", icon: FileBarChart },
   { to: "/notifications", label: "Notifications", icon: Bell },
@@ -31,6 +33,7 @@ const SUPER_NAV = [
   { to: "/admin/hospitals", label: "Hospitals", icon: Building2 },
   { to: "/admin/laboratories", label: "Laboratories", icon: FlaskConical },
   { to: "/admin/users", label: "System Users", icon: UserCog },
+  { to: "/enquiries", label: "Enquiries", icon: Inbox },
   { to: "/reports", label: "Reports", icon: FileBarChart },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;

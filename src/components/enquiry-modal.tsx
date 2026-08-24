@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { addEnquiry } from "@/lib/enquiries";
+import { useTenant } from "@/lib/tenant-context";
 
 interface Props {
   open: boolean;
@@ -17,6 +19,7 @@ interface Props {
 type Mode = "enquire" | "order";
 
 export function EnquiryModal({ open, onOpenChange, hospital, group }: Props) {
+  const { user } = useTenant();
   const [mode, setMode] = useState<Mode>("enquire");
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
@@ -44,14 +47,28 @@ export function EnquiryModal({ open, onOpenChange, hospital, group }: Props) {
     await new Promise((r) => setTimeout(r, 700));
     setSubmitting(false);
 
+    const ref = `ENQ-${Date.now().toString().slice(-6)}`;
+    addEnquiry({
+      reference: ref,
+      kind: mode === "order" ? "order" : "enquiry",
+      group,
+      quantity: mode === "order" ? quantity : 0,
+      notes,
+      supplierId: hospital.id,
+      supplierName: hospital.name,
+      requesterTenantId: user.tenant.id,
+      requesterTenantName: user.tenant.name,
+      requesterName: user.name,
+      status: "pending",
+    });
+
     if (mode === "order") {
-      const ref = `ORD-${Date.now().toString().slice(-6)}`;
       toast.success("Order placed", {
         description: `${quantity} unit${quantity > 1 ? "s" : ""} of ${group} requested from ${hospital.name}. Ref ${ref}.`,
       });
     } else {
       toast.success("Enquiry sent", {
-        description: `${hospital.name} has been notified about ${group}. They will respond via email or phone.`,
+        description: `${hospital.name} has been notified about ${group}. Ref ${ref}.`,
       });
     }
     onOpenChange(false);
