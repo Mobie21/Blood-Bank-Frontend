@@ -110,7 +110,7 @@ function EnquiriesPage() {
           value={pendingCount}
           icon={Droplet}
           hint={pendingCount ? "Action needed" : "Clear"}
-          hintTone={pendingCount ? "danger" : "success"}
+          hintTone={pendingCount ? "critical" : "success"}
         />
         <StatCard label="Orders received" value={orderCount} icon={ShoppingCart} hint="Units requested" hintTone="muted" />
         <StatCard label="Sent by us" value={sent.length} icon={Send} hint="Outgoing" hintTone="muted" />
