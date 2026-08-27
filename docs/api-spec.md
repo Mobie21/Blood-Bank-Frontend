@@ -300,8 +300,175 @@ critical-stock alerts and dashboard tone.
 5. **Validation** — schema-validate every payload; blood group must be one of the
    eight enum values; quantities are positive integers.
 
-## Suggested tables
+## Database schema
 
-`institutions`, `users`, `sessions`, `blood_units`, `stock_levels`,
-`stock_movements`, `enquiries`, `enquiry_messages`, `notifications`,
-`alert_thresholds`, `audit_logs`.
+Conventions: `id uuid PK default gen_random_uuid()` and `created_at timestamptz
+default now()` on every table (not repeated below). `tenant_id` always FKs to
+`institutions.id`. Enums are listed inline; implement as Postgres enum types or
+`CHECK` constraints.
+
+### `institutions`
+Tenancy root — hospitals and laboratories.
+
+| Field | Type | Notes |
+|---|---|---|
+| name | text not null | |
+| type | enum `hospital, laboratory` | |
+| province | text not null | e.g. Harare, Bulawayo, Midlands |
+| city | text not null | |
+| address | text | |
+| phone | text | +263 format |
+| email | text | |
+| departments | text[] | e.g. `{Transfusion, Maternity, Theatre}` |
+| status | enum `active, suspended` default `active` | |
+| updated_at | timestamptz | |
+
+### `users`
+All accounts; role + tenant enforce multi-tenancy.
+
+| Field | Type | Notes |
+|---|---|---|
+| email | citext unique not null | login |
+| password_hash | text not null | |
+| full_name | text not null | |
+| phone | text | |
+| role | enum `super_admin, hospital_admin, staff` | |
+| tenant_id | uuid FK institutions, null only for super_admin | |
+| designation | text | e.g. "Transfusion Nurse", "Lab Technologist" |
+| department | text | |
+| status | enum `active, suspended` default `active` | |
+| avatar_url | text | |
+| last_login_at | timestamptz | |
+| updated_at | timestamptz | |
+
+### `sessions`
+Refresh-token store for revocation + "close browser → re-login" policy.
+
+| Field | Type | Notes |
+|---|---|---|
+| user_id | uuid FK users not null | |
+| refresh_token_hash | text not null | |
+| user_agent | text | |
+| ip | inet | |
+| expires_at | timestamptz not null | |
+| revoked_at | timestamptz null | |
+
+### `blood_units`
+Individual units owned by one institution.
+
+| Field | Type | Notes |
+|---|---|---|
+| unit_code | text unique not null | barcode/donor unit ref |
+| tenant_id | uuid FK not null | owning institution |
+| blood_group | enum `O-,O+,A-,A+,B-,B+,AB-,AB+` not null | |
+| component | enum `whole_blood, packed_cells, plasma, platelets` default `packed_cells` | |
+| volume_ml | int not null | |
+| status | enum `available, reserved, issued, expired, quarantined` default `available` | |
+| collected_on | date | |
+| expires_on | date not null | |
+| reserved_for_enquiry_id | uuid FK enquiries null | links reservation to order |
+
+### `stock_levels`
+Per-tenant aggregate cache, one row per (tenant, blood_group) — powers
+dashboards and `/search/blood` without scanning units.
+
+| Field | Type | Notes |
+|---|---|---|
+| tenant_id | uuid FK not null | unique(tenant_id, blood_group) |
+| blood_group | enum not null | |
+| available | int default 0 | |
+| reserved | int default 0 | |
+| expiring_30d | int default 0 | |
+| updated_at | timestamptz | |
+
+### `stock_movements`
+Append-only ledger; every change to `blood_units.status`/`stock_levels`
+writes a row (units added, issued, reserved, released, expired, transferred).
+
+| Field | Type | Notes |
+|---|---|---|
+| tenant_id | uuid FK not null | |
+| blood_group | enum not null | |
+| movement_type | enum `add, issue, reserve, release, expire, transfer_out, transfer_in` | |
+| quantity | int not null | positive |
+| reference | text | order ref, supplier, or note |
+| actor_id | uuid FK users not null | |
+| enquiry_id | uuid FK enquiries null | |
+
+### `enquiries`
+Enquiries and orders between institutions (state machine:
+`pending → approved → fulfilled`, or `declined` / `cancelled`).
+
+| Field | Type | Notes |
+|---|---|---|
+| reference | text unique not null | `ENQ-XXXXXX` |
+| kind | enum `enquiry, order` not null | |
+| from_tenant_id | uuid FK not null | requester |
+| to_tenant_id | uuid FK not null | supplier |
+| blood_group | enum not null | |
+| quantity | int not null | orders only; enquiries use 1 |
+| priority | enum `routine, urgent, emergency` default `routine` | |
+| message | text | clinical context |
+| status | enum `pending, approved, declined, fulfilled, cancelled` default `pending` | |
+| requested_by | uuid FK users not null | |
+| responded_by | uuid FK users null | |
+| responded_at | timestamptz null | |
+| fulfilled_at | timestamptz null | |
+| updated_at | timestamptz | |
+
+### `enquiry_messages`
+Chat-style thread attached to an enquiry.
+
+| Field | Type | Notes |
+|---|---|---|
+| enquiry_id | uuid FK enquiries not null | |
+| sender_id | uuid FK users not null | |
+| body | text not null | |
+
+### `notifications`
+In-app + email queue per user.
+
+| Field | Type | Notes |
+|---|---|---|
+| user_id | uuid FK users not null | |
+| tenant_id | uuid FK not null | |
+| type | enum `enquiry_new, enquiry_response, order_fulfilled, stock_critical, stock_expiring, user_added` | |
+| title | text not null | |
+| body | text | |
+| link | text | e.g. `/enquiries?ref=ENQ-…` |
+| read_at | timestamptz null | |
+
+### `alert_thresholds`
+Per-tenant low/critical stock levels per blood group (drives dashboard tone
+and `stock_critical` notifications).
+
+| Field | Type | Notes |
+|---|---|---|
+| tenant_id | uuid FK not null | unique(tenant_id, blood_group) |
+| blood_group | enum not null | |
+| low | int not null | |
+| critical | int not null | |
+
+### `audit_logs`
+Cross-cutting write log (see rule 2 above).
+
+| Field | Type | Notes |
+|---|---|---|
+| actor_id | uuid FK users | null for system jobs |
+| tenant_id | uuid FK | |
+| action | text not null | e.g. `institution.create`, `enquiry.approve` |
+| entity | text not null | table name |
+| entity_id | uuid | |
+| before | jsonb | |
+| after | jsonb | |
+| ip | inet | |
+
+### Indexes
+
+- `users(email)`, `users(tenant_id)`
+- `blood_units(tenant_id, blood_group, status)`, `blood_units(expires_on)`
+- `stock_levels(tenant_id)`
+- `stock_movements(tenant_id, created_at desc)`
+- `enquiries(to_tenant_id, status)`, `enquiries(from_tenant_id, status)`
+- `enquiry_messages(enquiry_id, created_at)`
+- `notifications(user_id, read_at)`
