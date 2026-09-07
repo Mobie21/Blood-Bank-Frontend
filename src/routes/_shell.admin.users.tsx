@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { HOSPITALS } from "@/lib/mock-data";
 
-type SysRole = "Super Admin" | "Hospital Admin" | "Lab Admin";
+type SysRole = "Super Admin" | "Hospital Admin" | "Staff Member";
 type Status = "active" | "inactive";
 
 interface SysUser {
@@ -56,8 +56,8 @@ const INITIAL: SysUser[] = [
   { id: "u1", name: "Amara Nyathi", email: "amara@haemocentral.gov.zw", role: "Super Admin", tenant: "National Blood Service Zimbabwe", status: "active" },
   { id: "u2", name: "Dr. Tendai Chikomo", email: "tendai.chikomo@parirenyatwa.co.zw", role: "Hospital Admin", tenant: "Parirenyatwa Group of Hospitals", status: "active" },
   { id: "u3", name: "Dr. Rutendo Moyo", email: "rutendo@smch.co.zw", role: "Hospital Admin", tenant: "Sally Mugabe Central Hospital", status: "active" },
-  { id: "u4", name: "Chipo Marufu", email: "chipo@lancet.co.zw", role: "Lab Admin", tenant: "Lancet Clinical Laboratories", status: "active" },
-  { id: "u5", name: "Tawanda Sibanda", email: "tawanda@psmas.co.zw", role: "Lab Admin", tenant: "PSMAS Medlab Bulawayo", status: "inactive" },
+  { id: "u4", name: "Rudo Mutasa", email: "rudo.mutasa@parirenyatwa.co.zw", role: "Staff Member", tenant: "Parirenyatwa Group of Hospitals", status: "active" },
+  { id: "u5", name: "Tawanda Sibanda", email: "tawanda@mpilo.co.zw", role: "Staff Member", tenant: "Mpilo Central Hospital", status: "inactive" },
 ];
 
 const STORE_KEY = "haemocentral.sys_users";
@@ -66,7 +66,7 @@ export const Route = createFileRoute("/_shell/admin/users")({
   head: () => ({
     meta: [
       { title: "System Users — HaemoCentral" },
-      { name: "description", content: "Manage super admins, hospital admins and laboratory admins." },
+      { name: "description", content: "Manage super admins, hospital admins and staff members." },
     ],
   }),
   component: UsersPage,
@@ -316,14 +316,8 @@ function UserDialog({
   });
 
   const hospitalOptions = HOSPITALS.filter((h) => h.type === "hospital").map((h) => h.name);
-  const labOptions = HOSPITALS.filter((h) => h.type === "laboratory").map((h) => h.name);
 
-  const tenantOptions =
-    form.role === "Super Admin"
-      ? [NATIONAL_TENANT]
-      : form.role === "Hospital Admin"
-        ? hospitalOptions
-        : labOptions;
+  const tenantOptions = form.role === "Super Admin" ? [NATIONAL_TENANT] : hospitalOptions;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -386,7 +380,7 @@ function UserDialog({
               <SelectContent>
                 <SelectItem value="Super Admin">Super Admin</SelectItem>
                 <SelectItem value="Hospital Admin">Hospital Admin</SelectItem>
-                <SelectItem value="Lab Admin">Lab Admin</SelectItem>
+                <SelectItem value="Staff Member">Staff Member</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -400,7 +394,7 @@ function UserDialog({
                 onValueChange={(v) => setForm((f) => ({ ...f, tenant: v }))}
               >
                 <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder={`Select a ${form.role === "Hospital Admin" ? "hospital" : "laboratory"}`} />
+                  <SelectValue placeholder="Select a hospital" />
                 </SelectTrigger>
                 <SelectContent>
                   {tenantOptions.map((name) => (

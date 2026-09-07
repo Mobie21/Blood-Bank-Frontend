@@ -12,7 +12,7 @@ function ProfilePage() {
   const roleLabel = {
     super_admin: "Super Administrator",
     hospital_admin: "Hospital Administrator",
-    lab_admin: "Laboratory Administrator",
+    staff: "Staff Member",
   }[user.role];
 
   return (

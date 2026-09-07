@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export type Role = "super_admin" | "hospital_admin" | "lab_admin";
+export type Role = "super_admin" | "hospital_admin" | "staff";
 
 export interface Tenant {
   id: string;
@@ -46,6 +46,19 @@ const SUPER_ADMIN: CurrentUser = {
   },
 };
 
+const STAFF_USER: CurrentUser = {
+  id: "u_staff",
+  name: "Rudo Mutasa",
+  email: "rudo.mutasa@parirenyatwa.co.zw",
+  role: "staff",
+  tenant: {
+    id: "h_001",
+    name: "Parirenyatwa Group of Hospitals",
+    type: "hospital",
+    city: "Harare",
+    province: "Harare",
+  },
+};
 
 interface TenantContextValue {
   user: CurrentUser;
@@ -71,18 +84,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       }
       const stored = sessionStorage.getItem(STORAGE_KEY) as Role | null;
       if (stored === "super_admin") setUser(SUPER_ADMIN);
-      else if (stored === "lab_admin")
-        setUser({
-          ...DEFAULT_USER,
-          role: "lab_admin",
-          tenant: {
-            id: "l_001",
-            name: "Lancet Clinical Laboratories",
-            type: "laboratory",
-            city: "Harare",
-            province: "Harare",
-          },
-        });
+      else if (stored === "staff") setUser(STAFF_USER);
       else setUser(DEFAULT_USER);
     } catch {
       /* ignore */
@@ -100,18 +102,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
           /* ignore */
         }
         if (role === "super_admin") setUser(SUPER_ADMIN);
-        else if (role === "lab_admin")
-          setUser({
-            ...DEFAULT_USER,
-            role: "lab_admin",
-            tenant: {
-              id: "l_001",
-              name: "Lancet Clinical Laboratories",
-              type: "laboratory",
-              city: "Harare",
-              province: "Harare",
-            },
-          });
+        else if (role === "staff") setUser(STAFF_USER);
         else setUser(DEFAULT_USER);
       },
       signOut: () => {

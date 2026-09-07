@@ -24,11 +24,11 @@ export const MOCK_USERS: MockUser[] = [
     institution: "Parirenyatwa Group of Hospitals",
   },
   {
-    email: "chipo@lancet.co.zw",
-    password: "lab123",
-    name: "Chipo Marufu",
-    role: "lab_admin",
-    institution: "Lancet Clinical Laboratories",
+    email: "rudo.mutasa@parirenyatwa.co.zw",
+    password: "staff123",
+    name: "Rudo Mutasa",
+    role: "staff",
+    institution: "Parirenyatwa Group of Hospitals",
   },
 ];
 
