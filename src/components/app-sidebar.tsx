@@ -38,10 +38,20 @@ const SUPER_NAV = [
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
+const STAFF_NAV = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/inventory", label: "Blood Inventory", icon: Droplet },
+  { to: "/search", label: "Blood Search", icon: Search },
+  { to: "/enquiries", label: "Enquiries", icon: Inbox },
+  { to: "/notifications", label: "Notifications", icon: Bell },
+  { to: "/settings", label: "Settings", icon: Settings },
+] as const;
+
 export function AppSidebar() {
   const { user, signOut } = useTenant();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const nav = user.role === "super_admin" ? SUPER_NAV : HOSPITAL_NAV;
+  const nav =
+    user.role === "super_admin" ? SUPER_NAV : user.role === "staff" ? STAFF_NAV : HOSPITAL_NAV;
 
   return (
     <aside className="hidden md:flex w-64 bg-sidebar text-sidebar-foreground flex-col shrink-0">
