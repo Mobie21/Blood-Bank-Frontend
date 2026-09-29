@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useTenant } from "@/lib/tenant-context";
-import { MOCK_USERS, findUser } from "@/lib/mock-users";
+import { findUser } from "@/lib/mock-users";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -22,8 +22,8 @@ function LoginPage() {
   const navigate = useNavigate();
   const { setRole } = useTenant();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("tendai.chikomo@parirenyatwa.co.zw");
-  const [password, setPassword] = useState("hospital123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +33,7 @@ function LoginPage() {
       if (!user) {
         setLoading(false);
         toast.error("Invalid credentials", {
-          description: "Use one of the demo accounts listed below.",
+          description: "Check your email and password and try again.",
         });
         return;
       }
@@ -41,11 +41,6 @@ function LoginPage() {
       toast.success(`Welcome, ${user.name}`);
       navigate({ to: user.role === "super_admin" ? "/admin" : "/dashboard" });
     }, 400);
-  };
-
-  const fillCreds = (mail: string, pass: string) => {
-    setEmail(mail);
-    setPassword(pass);
   };
 
   return (
@@ -148,33 +143,6 @@ function LoginPage() {
           >
             {loading ? "Signing in..." : "Sign in"}
           </Button>
-
-          <div className="mt-8 rounded-lg ring-1 ring-black/5 bg-card p-4">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Demo accounts
-            </div>
-            <ul className="mt-3 space-y-2">
-              {MOCK_USERS.map((u) => (
-                <li key={u.email}>
-                  <button
-                    type="button"
-                    onClick={() => fillCreds(u.email, u.password)}
-                    className="w-full text-left rounded-md px-3 py-2 hover:bg-muted/60 transition-colors"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs font-medium text-foreground">{u.name}</span>
-                      <span className="text-[10px] uppercase tracking-wider text-blood font-semibold">
-                        {u.role.replace("_", " ")}
-                      </span>
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground font-mono">
-                      {u.email} · {u.password}
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
         </form>
       </div>
     </div>
