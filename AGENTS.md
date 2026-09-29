@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Standalone backend lives in `server/` (Express + Mongoose + Zod, run separately with its own package.json) — the user wants a MongoDB Atlas backend outside the web app.

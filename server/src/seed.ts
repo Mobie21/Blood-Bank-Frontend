@@ -32,7 +32,7 @@ async function main() {
   await connectDatabase();
   console.log("Clearing collections…");
   await Promise.all(
-    [AlertThresholdModel, AuditLogModel, BloodUnitModel, EnquiryMessageModel, EnquiryModel, InstitutionModel, NotificationModel, SessionModel, StockLevelModel, StockMovementModel, UserModel].map((m) => m.deleteMany({})),
+    [AlertThresholdModel, AuditLogModel, BloodUnitModel, EnquiryMessageModel, EnquiryModel, InstitutionModel, NotificationModel, SessionModel, StockLevelModel, StockMovementModel, UserModel].map((m) => (m as unknown as { deleteMany: (f: object) => Promise<unknown> }).deleteMany({})),
   );
 
   const institutions = await InstitutionModel.insertMany(INSTITUTIONS.map((i) => ({ ...i, departments: ["Blood Bank", "Emergency", "Maternity"] })));
