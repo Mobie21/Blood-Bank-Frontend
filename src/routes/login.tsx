@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useTenant } from "@/lib/tenant-context";
-import { findUser } from "@/lib/mock-users";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
