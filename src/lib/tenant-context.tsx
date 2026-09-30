@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { api, getTokens, setTokens } from "./api";
 
 export type Role = "super_admin" | "hospital_admin" | "staff";
 
@@ -18,74 +19,72 @@ export interface CurrentUser {
   tenant: Tenant;
 }
 
-const DEFAULT_USER: CurrentUser = {
-  id: "u_001",
-  name: "Dr. Tendai Chikomo",
-  email: "tendai.chikomo@parirenyatwa.co.zw",
-  role: "hospital_admin",
-  tenant: {
-    id: "h_001",
-    name: "Parirenyatwa Group of Hospitals",
-    type: "hospital",
-    city: "Harare",
-    province: "Harare",
-  },
+const NATIONAL_TENANT: Tenant = {
+  id: "gov",
+  name: "National Blood Service Zimbabwe",
+  type: "hospital",
+  city: "Harare",
+  province: "—",
 };
 
-const SUPER_ADMIN: CurrentUser = {
-  id: "u_super",
-  name: "Amara Nyathi",
-  email: "amara@haemocentral.gov.zw",
-  role: "super_admin",
-  tenant: {
-    id: "gov",
-    name: "National Blood Service Zimbabwe",
-    type: "hospital",
-    city: "Harare",
-    province: "—",
-  },
-};
-
-const STAFF_USER: CurrentUser = {
-  id: "u_staff",
-  name: "Rudo Mutasa",
-  email: "rudo.mutasa@parirenyatwa.co.zw",
+const EMPTY_USER: CurrentUser = {
+  id: "",
+  name: "Guest",
+  email: "",
   role: "staff",
-  tenant: {
-    id: "h_001",
-    name: "Parirenyatwa Group of Hospitals",
-    type: "hospital",
-    city: "Harare",
-    province: "Harare",
-  },
+  tenant: NATIONAL_TENANT,
 };
+
+interface ApiUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  tenant: Tenant | null;
+}
+
+interface LoginResponse {
+  access_token: string;
+  refresh_token: string;
+  user: ApiUser;
+}
+
+function toCurrentUser(u: ApiUser): CurrentUser {
+  return { id: u.id, name: u.name, email: u.email, role: u.role, tenant: u.tenant ?? NATIONAL_TENANT };
+}
 
 interface TenantContextValue {
   user: CurrentUser;
-  setRole: (role: Role) => void;
+  signIn: (email: string, password: string) => Promise<CurrentUser>;
   signOut: () => void;
 }
 
 const TenantContext = createContext<TenantContextValue | null>(null);
 
-const STORAGE_KEY = "haemocentral.role";
+const USER_KEY = "haemocentral.user";
+const ROLE_KEY = "haemocentral.role";
+const AUTH_KEY = "haemocentral.auth";
+
+function persist(user: CurrentUser | null) {
+  if (user) {
+    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+    sessionStorage.setItem(ROLE_KEY, user.role);
+    sessionStorage.setItem(AUTH_KEY, "1");
+  } else {
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(ROLE_KEY);
+    sessionStorage.removeItem(AUTH_KEY);
+  }
+}
 
 export function TenantProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<CurrentUser>(DEFAULT_USER);
+  const [user, setUser] = useState<CurrentUser>(EMPTY_USER);
 
   useEffect(() => {
     try {
-      const authed = sessionStorage.getItem("haemocentral.auth") === "1";
-      if (!authed) {
-        // Clear any stale role from previous sessions
-        sessionStorage.removeItem(STORAGE_KEY);
-        setUser(DEFAULT_USER);
-        return;
-      }
-      const stored = sessionStorage.getItem(STORAGE_KEY) as Role | null;
-      if (stored === "super_admin") setUser(SUPER_ADMIN);
-      else if (stored === "staff") setUser(STAFF_USER);
-      else setUser(DEFAULT_USER);
+      const raw = sessionStorage.getItem(USER_KEY);
+      if (raw && getTokens()) setUser(JSON.parse(raw) as CurrentUser);
+      else persist(null);
     } catch {
       /* ignore */
     }
@@ -94,28 +93,28 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const value = useMemo<TenantContextValue>(
     () => ({
       user,
-      setRole: (role) => {
-        try {
-          sessionStorage.setItem(STORAGE_KEY, role);
-          sessionStorage.setItem("haemocentral.auth", "1");
-        } catch {
-          /* ignore */
-        }
-        if (role === "super_admin") setUser(SUPER_ADMIN);
-        else if (role === "staff") setUser(STAFF_USER);
-        else setUser(DEFAULT_USER);
+      signIn: async (email, password) => {
+        const data = await api<LoginResponse>("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ email: email.trim(), password }),
+        });
+        setTokens({ access_token: data.access_token, refresh_token: data.refresh_token });
+        const u = toCurrentUser(data.user);
+        persist(u);
+        setUser(u);
+        return u;
       },
       signOut: () => {
-        try {
-          sessionStorage.removeItem(STORAGE_KEY);
-          sessionStorage.removeItem("haemocentral.auth");
-          // Also clear any legacy localStorage keys
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.removeItem("haemocentral.auth");
-        } catch {
-          /* ignore */
+        const t = getTokens();
+        if (t) {
+          api("/auth/logout", {
+            method: "POST",
+            body: JSON.stringify({ refresh_token: t.refresh_token }),
+          }).catch(() => {});
         }
-        setUser(DEFAULT_USER);
+        setTokens(null);
+        persist(null);
+        setUser(EMPTY_USER);
       },
     }),
     [user],
@@ -123,7 +122,6 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
 }
-
 
 export function useTenant() {
   const ctx = useContext(TenantContext);

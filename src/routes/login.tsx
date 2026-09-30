@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useTenant } from "@/lib/tenant-context";
-import { findUser } from "@/lib/mock-users";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -20,27 +19,24 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { setRole } = useTenant();
+  const { signIn } = useTenant();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const user = findUser(email, password);
-      if (!user) {
-        setLoading(false);
-        toast.error("Invalid credentials", {
-          description: "Check your email and password and try again.",
-        });
-        return;
-      }
-      setRole(user.role);
+    try {
+      const user = await signIn(email, password);
       toast.success(`Welcome, ${user.name}`);
       navigate({ to: user.role === "super_admin" ? "/admin" : "/dashboard" });
-    }, 400);
+    } catch (err) {
+      toast.error("Sign in failed", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+      setLoading(false);
+    }
   };
 
   return (
