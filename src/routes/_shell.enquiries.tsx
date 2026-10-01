@@ -1,14 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { enquiryAction, listEnquiries, type EnquiryStatus } from "@/lib/backend";
 import { Inbox, Send, Search, Droplet, ShoppingCart } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
-import {
-  loadEnquiries,
-  saveEnquiries,
-  formatDate,
-  type Enquiry,
-  type EnquiryStatus,
-} from "@/lib/enquiries";
+import { formatDate } from "@/lib/enquiries";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
@@ -40,54 +36,45 @@ const STATUS_STYLES: Record<EnquiryStatus, string> = {
   approved: "bg-blue-100 text-blue-700",
   declined: "bg-red-100 text-red-700",
   fulfilled: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-muted text-muted-foreground",
 };
 
 type Tab = "received" | "sent";
 
 function EnquiriesPage() {
   const { user } = useTenant();
-  const [all, setAll] = useState<Enquiry[]>([]);
   const [tab, setTab] = useState<Tab>("received");
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    setAll(loadEnquiries());
-  }, []);
-
-  const tenantId = user.tenant.id;
+  const qc = useQueryClient();
   const isSuper = user.role === "super_admin";
 
-  const received = useMemo(
-    () => (isSuper ? all : all.filter((e) => e.supplierId === tenantId)),
-    [all, tenantId, isSuper],
-  );
-  const sent = useMemo(
-    () => (isSuper ? all : all.filter((e) => e.requesterTenantId === tenantId)),
-    [all, tenantId, isSuper],
-  );
+  const receivedQ = useQuery({ queryKey: ["enquiries", "received"], queryFn: () => listEnquiries("received") });
+  const sentQ = useQuery({ queryKey: ["enquiries", "sent"], queryFn: () => listEnquiries("sent") });
+  const received = receivedQ.data ?? [];
+  const sent = sentQ.data ?? [];
+  const activeQ = tab === "received" ? receivedQ : sentQ;
 
   const rows = useMemo(() => {
     const list = tab === "received" ? received : sent;
     const q = query.trim().toLowerCase();
-    const filtered = q
+    return q
       ? list.filter((e) =>
-          [e.reference, e.group, e.supplierName, e.requesterTenantName, e.requesterName, e.status]
-            .join(" ")
-            .toLowerCase()
-            .includes(q),
+          [e.reference, e.group, e.fromName, e.toName, e.status].join(" ").toLowerCase().includes(q),
         )
       : list;
-    return [...filtered].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [tab, received, sent, query]);
 
-  const update = (id: string, status: EnquiryStatus) => {
-    setAll((prev) => {
-      const next = prev.map((e) => (e.id === id ? { ...e, status } : e));
-      saveEnquiries(next);
-      return next;
-    });
-    toast.success(`Request ${status}`);
-  };
+  const action = useMutation({
+    mutationFn: ({ id, act }: { id: string; act: "approve" | "decline" | "fulfil" }) => enquiryAction(id, act),
+    onSuccess: (_d, v) => {
+      toast.success(`Request ${v.act === "fulfil" ? "fulfilled" : v.act + "d"}`);
+      qc.invalidateQueries({ queryKey: ["enquiries"] });
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+    },
+    onError: (e: Error) => toast.error("Action failed", { description: e.message }),
+  });
+  const update = (id: string, status: EnquiryStatus) =>
+    action.mutate({ id, act: status === "approved" ? "approve" : status === "declined" ? "decline" : "fulfil" });
 
   const pendingCount = received.filter((e) => e.status === "pending").length;
   const orderCount = received.filter((e) => e.kind === "order").length;
@@ -164,15 +151,12 @@ function EnquiriesPage() {
                   <td className="px-6 py-3.5 capitalize text-muted-foreground">{e.kind}</td>
                   <td className="px-6 py-3.5">
                     <div className="font-medium text-foreground">
-                      {tab === "received" ? e.requesterTenantName : e.supplierName}
+                      {tab === "received" ? e.fromName : e.toName}
                     </div>
-                    {tab === "received" && (
-                      <div className="text-xs text-muted-foreground">{e.requesterName}</div>
-                    )}
                     {e.notes && <div className="text-xs text-muted-foreground mt-1 max-w-xs">{e.notes}</div>}
                   </td>
                   <td className="px-6 py-3.5 font-semibold text-blood">{e.group}</td>
-                  <td className="px-6 py-3.5 text-right font-mono">{e.quantity || "—"}</td>
+                  <td className="px-6 py-3.5 text-right font-mono">{e.kind === "order" ? e.quantity : "—"}</td>
                   <td className="px-6 py-3.5 text-muted-foreground whitespace-nowrap">{formatDate(e.createdAt)}</td>
                   <td className="px-6 py-3.5">
                     <span
@@ -206,7 +190,11 @@ function EnquiriesPage() {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-6 py-16 text-center text-sm text-muted-foreground">
-                    No {tab} enquiries yet.
+                    {activeQ.isLoading
+                      ? "Loading..."
+                      : activeQ.error
+                        ? (activeQ.error as Error).message
+                        : `No ${tab} enquiries yet.`}
                   </td>
                 </tr>
               )}

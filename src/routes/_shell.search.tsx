@@ -3,8 +3,9 @@ import { useMemo, useState } from "react";
 import { Search as SearchIcon, MapPin, Phone, Mail, Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { HOSPITALS, BLOOD_GROUPS, type BloodGroup, type Hospital } from "@/lib/mock-data";
-import { useTenant } from "@/lib/tenant-context";
+import { BLOOD_GROUPS, type BloodGroup } from "@/lib/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import { searchBlood, type SearchResult } from "@/lib/backend";
 import { EnquiryModal } from "@/components/enquiry-modal";
 import { cn } from "@/lib/utils";
 
@@ -19,23 +20,26 @@ export const Route = createFileRoute("/_shell/search")({
 });
 
 function SearchPage() {
-  const { user } = useTenant();
   const [group, setGroup] = useState<BloodGroup>("O-");
   const [province, setProvince] = useState("all");
   const [city, setCity] = useState("");
   const [minQty, setMinQty] = useState(1);
-  const [selected, setSelected] = useState<Hospital | null>(null);
+  const [selected, setSelected] = useState<SearchResult | null>(null);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["search", group, minQty],
+    queryFn: () => searchBlood({ group, min_quantity: minQty }),
+  });
+  const all = data?.data ?? [];
 
   const provinces = useMemo(
-    () => Array.from(new Set(HOSPITALS.map((h) => h.province))),
-    [],
+    () => Array.from(new Set(all.map((r) => r.institution.province))).sort(),
+    [all],
   );
 
-  const results = HOSPITALS.filter((h) => h.id !== user.tenant.id)
-    .filter((h) => h.stock[group] >= minQty)
-    .filter((h) => province === "all" || h.province === province)
-    .filter((h) => !city || h.city.toLowerCase().includes(city.toLowerCase()))
-    .sort((a, b) => b.stock[group] - a.stock[group]);
+  const results = all
+    .filter((r) => province === "all" || r.institution.province === province)
+    .filter((r) => !city || r.institution.city.toLowerCase().includes(city.toLowerCase()));
 
   return (
     <>
@@ -96,7 +100,7 @@ function SearchPage() {
             />
           </div>
           <div className="flex items-end">
-            <Button className="w-full bg-blood hover:bg-blood-dark text-white">
+            <Button onClick={() => refetch()} className="w-full bg-blood hover:bg-blood-dark text-white">
               <SearchIcon className="size-4" /> Search
             </Button>
           </div>
@@ -113,13 +117,16 @@ function SearchPage() {
 
         {results.length === 0 && (
           <div className="bg-card rounded-xl ring-1 ring-black/5 p-10 text-center">
-            <p className="text-sm text-muted-foreground">No institutions match your filters.</p>
+            <p className="text-sm text-muted-foreground">
+              {isLoading ? "Searching..." : error ? (error as Error).message : "No institutions match your filters."}
+            </p>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {results.map((h) => {
-            const qty = h.stock[group];
+          {results.map((r) => {
+            const h = r.institution;
+            const qty = r.available;
             const availability = qty >= 50 ? "High" : qty >= 20 ? "Moderate" : "Low";
             const tone =
               qty >= 50
@@ -157,7 +164,7 @@ function SearchPage() {
                     </p>
                   </div>
                   <Button
-                    onClick={() => setSelected(h)}
+                    onClick={() => setSelected(r)}
                     className="bg-blood hover:bg-blood-dark text-white"
                   >
                     Enquire
@@ -165,18 +172,17 @@ function SearchPage() {
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-3 text-xs">
-                  <a
-                    href={`tel:${h.phone}`}
-                    className="flex items-center gap-2 text-muted-foreground hover:text-blood truncate"
-                  >
-                    <Phone className="size-3.5 shrink-0" /> {h.phone}
-                  </a>
-                  <a
-                    href={`mailto:${h.email}`}
-                    className="flex items-center gap-2 text-muted-foreground hover:text-blood truncate"
-                  >
-                    <Mail className="size-3.5 shrink-0" /> {h.email}
-                  </a>
+                  {h.phone && (
+                    <a
+                      href={`tel:${h.phone}`}
+                      className="flex items-center gap-2 text-muted-foreground hover:text-blood truncate"
+                    >
+                      <Phone className="size-3.5 shrink-0" /> {h.phone}
+                    </a>
+                  )}
+                  <span className="flex items-center gap-2 text-muted-foreground truncate capitalize">
+                    <Mail className="size-3.5 shrink-0" /> {h.blood_dept_contact ?? h.type}
+                  </span>
                 </div>
               </div>
             );
@@ -187,8 +193,7 @@ function SearchPage() {
       <EnquiryModal
         open={!!selected}
         onOpenChange={(v) => !v && setSelected(null)}
-        hospital={selected}
-        group={group}
+        result={selected}
       />
     </>
   );

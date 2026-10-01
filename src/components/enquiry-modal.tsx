@@ -1,25 +1,25 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import type { Hospital, BloodGroup } from "@/lib/mock-data";
 import { Mail, Phone, MapPin, User, Droplet, Send, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { addEnquiry } from "@/lib/enquiries";
-import { useTenant } from "@/lib/tenant-context";
+import { useQueryClient } from "@tanstack/react-query";
+import { createEnquiry, type SearchResult } from "@/lib/backend";
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  hospital: Hospital | null;
-  group: BloodGroup;
+  result: SearchResult | null;
 }
 
 type Mode = "enquire" | "order";
 
-export function EnquiryModal({ open, onOpenChange, hospital, group }: Props) {
-  const { user } = useTenant();
+export function EnquiryModal({ open, onOpenChange, result }: Props) {
+  const qc = useQueryClient();
+  const hospital = result?.institution ?? null;
+  const group = result?.group ?? "O+";
   const [mode, setMode] = useState<Mode>("enquire");
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
@@ -33,8 +33,8 @@ export function EnquiryModal({ open, onOpenChange, hospital, group }: Props) {
     }
   }, [open, hospital?.id]);
 
-  if (!hospital) return null;
-  const available = hospital.stock[group];
+  if (!hospital || !result) return null;
+  const available = result.available;
   const canOrder = available > 0;
   const qtyValid = quantity >= 1 && quantity <= available;
 
@@ -44,23 +44,23 @@ export function EnquiryModal({ open, onOpenChange, hospital, group }: Props) {
       return;
     }
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 700));
+    let ref = "";
+    try {
+      const res = await createEnquiry({
+        supplier_id: hospital.id,
+        kind: mode === "order" ? "order" : "enquiry",
+        group,
+        quantity: mode === "order" ? quantity : 1,
+        notes: notes || undefined,
+      });
+      ref = res.data.reference;
+      qc.invalidateQueries({ queryKey: ["enquiries"] });
+    } catch (e) {
+      setSubmitting(false);
+      toast.error("Could not send", { description: e instanceof Error ? e.message : undefined });
+      return;
+    }
     setSubmitting(false);
-
-    const ref = `ENQ-${Date.now().toString().slice(-6)}`;
-    addEnquiry({
-      reference: ref,
-      kind: mode === "order" ? "order" : "enquiry",
-      group,
-      quantity: mode === "order" ? quantity : 0,
-      notes,
-      supplierId: hospital.id,
-      supplierName: hospital.name,
-      requesterTenantId: user.tenant.id,
-      requesterTenantName: user.tenant.name,
-      requesterName: user.name,
-      status: "pending",
-    });
 
     if (mode === "order") {
       toast.success("Order placed", {
@@ -154,14 +154,10 @@ export function EnquiryModal({ open, onOpenChange, hospital, group }: Props) {
           </div>
         ) : (
           <dl className="mt-4 space-y-3 text-sm">
-            <Row icon={User} label="Contact person" value={hospital.bloodDeptContact} />
-            <Row icon={Phone} label="Phone" value={hospital.phone} href={`tel:${hospital.phone}`} />
-            <Row icon={Mail} label="Email" value={hospital.email} href={`mailto:${hospital.email}`} />
-            <Row
-              icon={MapPin}
-              label="Address"
-              value={`${hospital.address}, ${hospital.city}, ${hospital.province}`}
-            />
+            <Row icon={User} label="Contact person" value={hospital.blood_dept_contact ?? "—"} />
+            <Row icon={Phone} label="Phone" value={hospital.phone ?? "—"} href={hospital.phone ? `tel:${hospital.phone}` : undefined} />
+            <Row icon={Mail} label="Type" value={hospital.type} />
+            <Row icon={MapPin} label="Location" value={`${hospital.city}, ${hospital.province}`} />
           </dl>
         )}
 
