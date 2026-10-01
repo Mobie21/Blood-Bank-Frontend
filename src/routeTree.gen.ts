@@ -9,70 +9,40 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ShellStaffRouteImport } from './routes/_shell.staff'
-import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
-import { Route as ShellSearchRouteImport } from './routes/_shell.search'
-import { Route as ShellReportsRouteImport } from './routes/_shell.reports'
-import { Route as ShellProfileRouteImport } from './routes/_shell.profile'
-import { Route as ShellNotificationsRouteImport } from './routes/_shell.notifications'
-import { Route as ShellInventoryRouteImport } from './routes/_shell.inventory'
-import { Route as ShellEnquiriesRouteImport } from './routes/_shell.enquiries'
+import { Route as ShellRouteImport } from './routes/_shell'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as ShellDashboardRouteImport } from './routes/_shell.dashboard'
+import { Route as ShellEnquiriesRouteImport } from './routes/_shell.enquiries'
+import { Route as ShellInventoryRouteImport } from './routes/_shell.inventory'
+import { Route as ShellNotificationsRouteImport } from './routes/_shell.notifications'
+import { Route as ShellProfileRouteImport } from './routes/_shell.profile'
+import { Route as ShellReportsRouteImport } from './routes/_shell.reports'
+import { Route as ShellSearchRouteImport } from './routes/_shell.search'
+import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
+import { Route as ShellStaffRouteImport } from './routes/_shell.staff'
 import { Route as ShellAdminIndexRouteImport } from './routes/_shell.admin.index'
-import { Route as ShellAdminUsersRouteImport } from './routes/_shell.admin.users'
-import { Route as ShellAdminLaboratoriesRouteImport } from './routes/_shell.admin.laboratories'
 import { Route as ShellAdminHospitalsRouteImport } from './routes/_shell.admin.hospitals'
+import { Route as ShellAdminLaboratoriesRouteImport } from './routes/_shell.admin.laboratories'
+import { Route as ShellAdminUsersRouteImport } from './routes/_shell.admin.users'
 
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShellRoute = ShellRouteImport.update({
   id: '/_shell',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShellStaffRoute = ShellStaffRouteImport.update({
-  id: '/staff',
-  path: '/staff',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellSettingsRoute = ShellSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellSearchRoute = ShellSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellReportsRoute = ShellReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellProfileRoute = ShellProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellNotificationsRoute = ShellNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => ShellRoute,
-} as any)
-const ShellInventoryRoute = ShellInventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
+const ShellDashboardRoute = ShellDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellEnquiriesRoute = ShellEnquiriesRouteImport.update({
@@ -80,9 +50,39 @@ const ShellEnquiriesRoute = ShellEnquiriesRouteImport.update({
   path: '/enquiries',
   getParentRoute: () => ShellRoute,
 } as any)
-const ShellDashboardRoute = ShellDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const ShellInventoryRoute = ShellInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellNotificationsRoute = ShellNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellProfileRoute = ShellProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellReportsRoute = ShellReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellSearchRoute = ShellSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellSettingsRoute = ShellSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellStaffRoute = ShellStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellAdminIndexRoute = ShellAdminIndexRouteImport.update({
@@ -90,9 +90,9 @@ const ShellAdminIndexRoute = ShellAdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => ShellRoute,
 } as any)
-const ShellAdminUsersRoute = ShellAdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
+const ShellAdminHospitalsRoute = ShellAdminHospitalsRouteImport.update({
+  id: '/admin/hospitals',
+  path: '/admin/hospitals',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellAdminLaboratoriesRoute = ShellAdminLaboratoriesRouteImport.update({
@@ -100,9 +100,9 @@ const ShellAdminLaboratoriesRoute = ShellAdminLaboratoriesRouteImport.update({
   path: '/admin/laboratories',
   getParentRoute: () => ShellRoute,
 } as any)
-const ShellAdminHospitalsRoute = ShellAdminHospitalsRouteImport.update({
-  id: '/admin/hospitals',
-  path: '/admin/hospitals',
+const ShellAdminUsersRoute = ShellAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
   getParentRoute: () => ShellRoute,
 } as any)
 
@@ -222,11 +222,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_shell': {
@@ -236,60 +236,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_shell/staff': {
-      id: '/_shell/staff'
-      path: '/staff'
-      fullPath: '/staff'
-      preLoaderRoute: typeof ShellStaffRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/settings': {
-      id: '/_shell/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof ShellSettingsRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/search': {
-      id: '/_shell/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof ShellSearchRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/reports': {
-      id: '/_shell/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof ShellReportsRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/profile': {
-      id: '/_shell/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ShellProfileRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/notifications': {
-      id: '/_shell/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof ShellNotificationsRouteImport
-      parentRoute: typeof ShellRoute
-    }
-    '/_shell/inventory': {
-      id: '/_shell/inventory'
-      path: '/inventory'
-      fullPath: '/inventory'
-      preLoaderRoute: typeof ShellInventoryRouteImport
+    '/_shell/dashboard': {
+      id: '/_shell/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof ShellDashboardRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/enquiries': {
@@ -299,11 +257,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellEnquiriesRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/_shell/dashboard': {
-      id: '/_shell/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof ShellDashboardRouteImport
+    '/_shell/inventory': {
+      id: '/_shell/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof ShellInventoryRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/notifications': {
+      id: '/_shell/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof ShellNotificationsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/profile': {
+      id: '/_shell/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ShellProfileRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/reports': {
+      id: '/_shell/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ShellReportsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/search': {
+      id: '/_shell/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof ShellSearchRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/settings': {
+      id: '/_shell/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof ShellSettingsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/staff': {
+      id: '/_shell/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof ShellStaffRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/admin/': {
@@ -313,11 +313,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellAdminIndexRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/_shell/admin/users': {
-      id: '/_shell/admin/users'
-      path: '/admin/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof ShellAdminUsersRouteImport
+    '/_shell/admin/hospitals': {
+      id: '/_shell/admin/hospitals'
+      path: '/admin/hospitals'
+      fullPath: '/admin/hospitals'
+      preLoaderRoute: typeof ShellAdminHospitalsRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/admin/laboratories': {
@@ -327,11 +327,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellAdminLaboratoriesRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/_shell/admin/hospitals': {
-      id: '/_shell/admin/hospitals'
-      path: '/admin/hospitals'
-      fullPath: '/admin/hospitals'
-      preLoaderRoute: typeof ShellAdminHospitalsRouteImport
+    '/_shell/admin/users': {
+      id: '/_shell/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof ShellAdminUsersRouteImport
       parentRoute: typeof ShellRoute
     }
   }
