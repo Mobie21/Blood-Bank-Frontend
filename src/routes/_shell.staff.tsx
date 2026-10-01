@@ -36,7 +36,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { STAFF, type StaffMember } from "@/lib/mock-data";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createStaff,
+  deleteStaff,
+  listStaff,
+  setStaffStatus,
+  updateStaff,
+  type StaffInput,
+} from "@/lib/backend";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -50,13 +58,37 @@ export const Route = createFileRoute("/_shell/staff")({
   component: StaffPage,
 });
 
-type StaffRole = StaffMember["role"];
+type StaffRole = "hospital_admin" | "staff";
+
+interface StaffMember {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  department: string;
+  position: string;
+  role: StaffRole;
+  status: "active" | "suspended";
+}
 
 function StaffPage() {
-  const [staff, setStaff] = useState<StaffMember[]>(STAFF);
+  const qc = useQueryClient();
+  const { data, isLoading, error } = useQuery({ queryKey: ["staff"], queryFn: listStaff });
+  const staff: StaffMember[] = (data?.data ?? []).map((u) => ({
+    id: u._id,
+    name: u.fullName,
+    email: u.email,
+    phone: u.phone ?? "",
+    department: u.department ?? "",
+    position: u.designation ?? "",
+    role: u.role === "hospital_admin" ? "hospital_admin" : "staff",
+    status: u.status,
+  }));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StaffMember | null>(null);
   const [deleting, setDeleting] = useState<StaffMember | null>(null);
+  const refresh = () => qc.invalidateQueries({ queryKey: ["staff"] });
+  const fail = (e: Error) => toast.error("Action failed", { description: e.message });
 
   const openAdd = () => {
     setEditing(null);
@@ -66,27 +98,59 @@ function StaffPage() {
     setEditing(s);
     setDialogOpen(true);
   };
-  const toggleStatus = (s: StaffMember) => {
-    setStaff((prev) =>
-      prev.map((x) =>
-        x.id === s.id ? { ...x, status: x.status === "active" ? "inactive" : "active" } : x,
-      ),
-    );
-    toast.success(`${s.name} ${s.status === "active" ? "suspended" : "reinstated"}`);
-  };
+  const statusM = useMutation({
+    mutationFn: (s: StaffMember) => setStaffStatus(s.id, s.status === "active" ? "suspend" : "activate"),
+    onSuccess: (_d, s) => {
+      toast.success(`${s.name} ${s.status === "active" ? "suspended" : "reinstated"}`);
+      refresh();
+    },
+    onError: fail,
+  });
+  const toggleStatus = (s: StaffMember) => statusM.mutate(s);
+  const deleteM = useMutation({
+    mutationFn: (s: StaffMember) => deleteStaff(s.id),
+    onSuccess: (_d, s) => {
+      toast.success(`${s.name} removed`);
+      refresh();
+    },
+    onError: fail,
+  });
   const confirmDelete = () => {
     if (!deleting) return;
-    setStaff((prev) => prev.filter((x) => x.id !== deleting.id));
-    toast.success(`${deleting.name} removed`);
+    deleteM.mutate(deleting);
     setDeleting(null);
   };
+  const saveM = useMutation({
+    mutationFn: async (s: StaffMember) => {
+      const body: StaffInput = {
+        fullName: s.name,
+        email: s.email,
+        phone: s.phone || undefined,
+        department: s.department || undefined,
+        designation: s.position || undefined,
+        role: s.role,
+      };
+      if (editing) return updateStaff(s.id, body);
+      return createStaff(body);
+    },
+    onSuccess: (res, s) => {
+      const temp = (res as { temporary_password?: string }).temporary_password;
+      toast.success(`${s.name} ${editing ? "updated" : "added"}`, {
+        description: temp ? `Temporary password: ${temp}` : undefined,
+        duration: temp ? 20000 : undefined,
+      });
+      setDialogOpen(false);
+      refresh();
+    },
+    onError: fail,
+  });
 
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
-          <p className="text-sm text-muted-foreground mt-1">{staff.length} members</p>
+          <p className="text-sm text-muted-foreground mt-1">{isLoading ? "Loading..." : `${staff.length} members`}</p>
         </div>
         <Button className="bg-blood hover:bg-blood-dark text-white" onClick={openAdd}>
           <Plus className="size-4" /> Add staff member
@@ -109,7 +173,11 @@ function StaffPage() {
             {staff.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
-                  No staff members yet. Click "Add staff member" to add one.
+                  {isLoading
+                    ? "Loading..."
+                    : error
+                      ? (error as Error).message
+                      : 'No staff members yet. Click "Add staff member" to add one.'}
                 </td>
               </tr>
             )}
@@ -184,16 +252,7 @@ function StaffPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editing={editing}
-        onSubmit={(s) => {
-          if (editing) {
-            setStaff((prev) => prev.map((x) => (x.id === s.id ? s : x)));
-            toast.success(`${s.name} updated`);
-          } else {
-            setStaff((prev) => [s, ...prev]);
-            toast.success(`${s.name} added`);
-          }
-          setDialogOpen(false);
-        }}
+        onSubmit={(s) => saveM.mutate(s)}
         onSuspend={
           editing
             ? () => {
@@ -295,7 +354,7 @@ function StaffDialog({
             </div>
             <div>
               <Label className="text-xs">Phone</Label>
-              <Input className="mt-1.5" required value={form.phone} onChange={set("phone")} placeholder="+263 772 000 000" />
+              <Input className="mt-1.5" value={form.phone} onChange={set("phone")} placeholder="+263 772 000 000" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -320,7 +379,6 @@ function StaffDialog({
               <SelectContent>
                 <SelectItem value="hospital_admin">Hospital Admin</SelectItem>
                 <SelectItem value="staff">Staff</SelectItem>
-                <SelectItem value="technician">Technician</SelectItem>
               </SelectContent>
             </Select>
           </div>
