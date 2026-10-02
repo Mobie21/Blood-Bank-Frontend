@@ -2,7 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Droplet, AlertTriangle, ArrowUpRight, Users, ClipboardList, Search } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
 import { BloodDistribution } from "@/components/blood-distribution";
-import { ACTIVITY, HOSPITALS, INVENTORY, totalStock } from "@/lib/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import {
+  emptyStock,
+  getEnquiryStats,
+  getExpiring,
+  getInventorySummary,
+  listNotifications,
+  listStaff,
+  timeAgo,
+} from "@/lib/backend";
 import { useTenant } from "@/lib/tenant-context";
 import { cn } from "@/lib/utils";
 
@@ -18,20 +27,33 @@ export const Route = createFileRoute("/_shell/dashboard")({
 
 function DashboardPage() {
   const { user } = useTenant();
-  const hospital = HOSPITALS.find((h) => h.id === user.tenant.id) ?? HOSPITALS[0];
-  const total = totalStock(hospital.stock);
-  const expiring = INVENTORY.filter((u) => {
-    const days = (new Date(u.expiryDate).getTime() - Date.now()) / 86_400_000;
-    return days <= 3;
-  });
+  const summaryQ = useQuery({ queryKey: ["inventory", "summary"], queryFn: getInventorySummary });
+  const expiringQ = useQuery({ queryKey: ["inventory", "expiring", 3], queryFn: () => getExpiring(3) });
+  const enquiryQ = useQuery({ queryKey: ["enquiries", "stats"], queryFn: getEnquiryStats });
+  const staffQ = useQuery({ queryKey: ["staff"], queryFn: listStaff });
+  const notesQ = useQuery({ queryKey: ["notifications"], queryFn: listNotifications });
+
+  const summary = summaryQ.data;
+  const expiring = expiringQ.data ?? [];
+  const stats = enquiryQ.data ?? {};
+  const activeRequests = (stats.pending ?? 0) + (stats.approved ?? 0);
+  const activeStaff = (staffQ.data?.data ?? []).filter((s) => s.status === "active").length;
+  const activity = (notesQ.data?.data ?? []).slice(0, 5);
+  const loadError = summaryQ.error as Error | null;
+  void user;
 
   return (
     <>
+      {loadError && (
+        <div className="rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3 ring-1 ring-red-200">
+          {loadError.message}
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-        <StatCard label="Total Units" value={total.toLocaleString()} hint="+4.2%" hintTone="success" icon={Droplet} />
-        <StatCard label="Expiring Soon" value={expiring.length} hint="Critical" hintTone="critical" icon={AlertTriangle} />
-        <StatCard label="Active Requests" value={18} hint="3 Urgent" hintTone="muted" icon={ClipboardList} />
-        <StatCard label="Staff on Duty" value={24} hint="Active" hintTone="muted" icon={Users} />
+        <StatCard label="Total Units" value={summary ? summary.total_units.toLocaleString() : "—"} hint={summary ? `${summary.reserved} reserved` : "Loading"} hintTone="muted" icon={Droplet} />
+        <StatCard label="Expiring Soon" value={summary?.expiring_soon ?? "—"} hint="Next 30 days" hintTone={summary?.expiring_soon ? "critical" : "success"} icon={AlertTriangle} />
+        <StatCard label="Active Requests" value={activeRequests} hint={`${stats.pending ?? 0} pending`} hintTone="muted" icon={ClipboardList} />
+        <StatCard label="Active Staff" value={activeStaff} hint="Active accounts" hintTone="muted" icon={Users} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
@@ -45,7 +67,7 @@ function DashboardPage() {
               Download report
             </Link>
           </div>
-          <BloodDistribution stock={hospital.stock} />
+          <BloodDistribution stock={summary?.by_group ?? emptyStock()} />
         </div>
 
         <Link
@@ -89,7 +111,7 @@ function DashboardPage() {
                 {expiring.map((u) => {
                   const hours = Math.max(
                     0,
-                    Math.round((new Date(u.expiryDate).getTime() - Date.now()) / 3_600_000),
+                    Math.round((new Date(u.expiresOn).getTime() - Date.now()) / 3_600_000),
                   );
                   const tone =
                     hours <= 24
@@ -100,9 +122,9 @@ function DashboardPage() {
                   const status = hours <= 24 ? "Critical" : hours <= 48 ? "Warning" : "Stable";
                   return (
                     <tr key={u.id} className="text-sm text-foreground/80 hover:bg-muted/40">
-                      <td className="px-6 py-3.5 font-medium text-foreground">#{u.id}</td>
-                      <td className="px-6 py-3.5">{u.group}</td>
-                      <td className="px-6 py-3.5">{u.collectionDate}</td>
+                      <td className="px-6 py-3.5 font-medium text-foreground">{u.unitCode}</td>
+                      <td className="px-6 py-3.5">{u.bloodGroup}</td>
+                      <td className="px-6 py-3.5">{u.collectedOn ? u.collectedOn.slice(0, 10) : "—"}</td>
                       <td className="px-6 py-3.5">{hours}h remaining</td>
                       <td className="px-6 py-3.5">
                         <span
@@ -117,6 +139,13 @@ function DashboardPage() {
                     </tr>
                   );
                 })}
+                {expiring.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                      {expiringQ.isLoading ? "Loading..." : "No units expiring in the next 72 hours."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -125,21 +154,24 @@ function DashboardPage() {
         <div className="lg:col-span-4 bg-card rounded-xl ring-1 ring-black/5 shadow-card p-6">
           <h3 className="text-sm font-semibold text-foreground mb-6">Recent Activity</h3>
           <ul className="space-y-5">
-            {ACTIVITY.map((a) => (
-              <li key={a.id} className="flex gap-4">
+            {activity.length === 0 && (
+              <li className="text-sm text-muted-foreground">
+                {notesQ.isLoading ? "Loading..." : "No recent activity."}
+              </li>
+            )}
+            {activity.map((a) => (
+              <li key={a._id} className="flex gap-4">
                 <span
                   className={cn(
                     "size-2 mt-1.5 rounded-full shrink-0",
-                    a.kind === "inbound" && "bg-emerald-500",
-                    a.kind === "issued" && "bg-blood",
-                    a.kind === "audit" && "bg-muted-foreground/40",
-                    a.kind === "alert" && "bg-amber-500",
-                    a.kind === "enquiry" && "bg-blue-500",
+                    a.severity === "critical" && "bg-blood",
+                    a.severity === "warning" && "bg-amber-500",
+                    a.severity === "info" && "bg-blue-500",
                   )}
                 />
                 <div>
-                  <p className="text-sm text-foreground leading-snug">{a.message}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">{a.timestamp}</p>
+                  <p className="text-sm text-foreground leading-snug">{a.title}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{timeAgo(a.createdAt)}</p>
                 </div>
               </li>
             ))}
