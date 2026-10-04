@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { HOSPITALS, type Hospital } from "@/lib/mock-data";
 import { InstitutionTable } from "./_shell.admin.hospitals";
 
 export const Route = createFileRoute("/_shell/admin/laboratories")({
@@ -14,15 +12,5 @@ export const Route = createFileRoute("/_shell/admin/laboratories")({
 });
 
 function LaboratoriesPage() {
-  const [items, setItems] = useState<Hospital[]>(
-    HOSPITALS.filter((h) => h.type === "laboratory"),
-  );
-  return (
-    <InstitutionTable
-      title="Laboratories"
-      type="laboratory"
-      items={items}
-      setItems={setItems}
-    />
-  );
+  return <InstitutionTable title="Laboratories" type="laboratory" />;
 }

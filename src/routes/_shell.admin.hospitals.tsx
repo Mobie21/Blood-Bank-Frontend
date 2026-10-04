@@ -29,7 +29,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { HOSPITALS, totalStock, BLOOD_GROUPS, type Hospital, type BloodGroup } from "@/lib/mock-data";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createInstitution,
+  deleteInstitution,
+  listInstitutions,
+  setInstitutionStatus,
+  updateInstitution,
+  type Institution,
+  type InstitutionInput,
+} from "@/lib/backend";
+
+type Hospital = Institution;
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -44,28 +55,21 @@ export const Route = createFileRoute("/_shell/admin/hospitals")({
 });
 
 function HospitalsPage() {
-  const [items, setItems] = useState<Hospital[]>(HOSPITALS.filter((h) => h.type === "hospital"));
-  return (
-    <InstitutionTable
-      title="Hospitals"
-      type="hospital"
-      items={items}
-      setItems={setItems}
-    />
-  );
+  return <InstitutionTable title="Hospitals" type="hospital" />;
 }
 
-export function InstitutionTable({
-  title,
-  type,
-  items,
-  setItems,
-}: {
-  title: string;
-  type: "hospital" | "laboratory";
-  items: Hospital[];
-  setItems: React.Dispatch<React.SetStateAction<Hospital[]>>;
-}) {
+export function InstitutionTable({ title, type }: { title: string; type: "hospital" | "laboratory" }) {
+  const qc = useQueryClient();
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["institutions", type],
+    queryFn: () => listInstitutions(type),
+  });
+  const items = data ?? [];
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["institutions"] });
+    qc.invalidateQueries({ queryKey: ["admin"] });
+  };
+  const fail = (e: Error) => toast.error("Action failed", { description: e.message });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Hospital | null>(null);
   const [deleting, setDeleting] = useState<Hospital | null>(null);
@@ -79,27 +83,45 @@ export function InstitutionTable({
     setEditing(h);
     setDialogOpen(true);
   };
-  const toggleStatus = (h: Hospital) => {
-    setItems((prev) =>
-      prev.map((x) =>
-        x.id === h.id ? { ...x, status: x.status === "active" ? "inactive" : "active" } : x,
-      ),
-    );
-    toast.success(`${h.name} ${h.status === "active" ? "deactivated" : "activated"}`);
-  };
+  const statusM = useMutation({
+    mutationFn: (h: Hospital) => setInstitutionStatus(h.id, h.status === "active" ? "suspended" : "active"),
+    onSuccess: (_d, h) => {
+      toast.success(`${h.name} ${h.status === "active" ? "deactivated" : "activated"}`);
+      refresh();
+    },
+    onError: fail,
+  });
+  const toggleStatus = (h: Hospital) => statusM.mutate(h);
+  const deleteM = useMutation({
+    mutationFn: (h: Hospital) => deleteInstitution(h.id),
+    onSuccess: (_d, h) => {
+      toast.success(`${h.name} removed`);
+      refresh();
+    },
+    onError: fail,
+  });
   const confirmDelete = () => {
     if (!deleting) return;
-    setItems((prev) => prev.filter((x) => x.id !== deleting.id));
-    toast.success(`${deleting.name} removed`);
+    deleteM.mutate(deleting);
     setDeleting(null);
   };
+  const saveM = useMutation({
+    mutationFn: (body: InstitutionInput) =>
+      editing ? updateInstitution(editing.id, body) : createInstitution(body),
+    onSuccess: (_d, body) => {
+      toast.success(`${body.name} ${editing ? "updated" : "registered"}`);
+      setDialogOpen(false);
+      refresh();
+    },
+    onError: fail,
+  });
 
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{items.length} registered</p>
+          <p className="text-sm text-muted-foreground mt-1">{isLoading ? "Loading..." : `${items.length} registered`}</p>
         </div>
         <Button className="bg-blood hover:bg-blood-dark text-white" onClick={openAdd}>
           <Plus className="size-4" /> Add {noun}
@@ -123,7 +145,11 @@ export function InstitutionTable({
             {items.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-6 py-10 text-center text-sm text-muted-foreground">
-                  No {noun}s yet. Click "Add {noun}" to register one.
+                  {isLoading
+                    ? "Loading..."
+                    : error
+                      ? (error as Error).message
+                      : `No ${noun}s yet. Click "Add ${noun}" to register one.`}
                 </td>
               </tr>
             )}
@@ -131,7 +157,7 @@ export function InstitutionTable({
               <tr key={h.id} className="hover:bg-muted/30">
                 <td className="px-6 py-3.5">
                   <div className="font-medium text-foreground">{h.name}</div>
-                  <div className="text-xs text-muted-foreground">{h.bloodDeptContact}</div>
+                  <div className="text-xs text-muted-foreground">{h.bloodDeptContact ?? ""}</div>
                 </td>
                 <td className="px-6 py-3.5 text-muted-foreground font-mono">{h.code}</td>
                 <td className="px-6 py-3.5 text-muted-foreground">
@@ -141,7 +167,7 @@ export function InstitutionTable({
                   <div>{h.phone}</div>
                   <div className="text-xs">{h.email}</div>
                 </td>
-                <td className="px-6 py-3.5 font-mono">{totalStock(h.stock).toLocaleString()}</td>
+                <td className="px-6 py-3.5 font-mono">{h.total_units.toLocaleString()}</td>
                 <td className="px-6 py-3.5">
                   <span
                     className={cn(
@@ -195,16 +221,8 @@ export function InstitutionTable({
         type={type}
         noun={noun}
         editing={editing}
-        onSubmit={(h) => {
-          if (editing) {
-            setItems((prev) => prev.map((x) => (x.id === h.id ? h : x)));
-            toast.success(`${h.name} updated`);
-          } else {
-            setItems((prev) => [h, ...prev]);
-            toast.success(`${h.name} registered`);
-          }
-          setDialogOpen(false);
-        }}
+        onSubmit={(body) => saveM.mutate(body)}
+        saving={saveM.isPending}
       />
 
       <AlertDialog open={!!deleting} onOpenChange={(v) => !v && setDeleting(null)}>
@@ -237,23 +255,23 @@ function InstitutionDialog({
   noun,
   editing,
   onSubmit,
+  saving,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   type: "hospital" | "laboratory";
   noun: string;
   editing: Hospital | null;
-  onSubmit: (h: Hospital) => void;
+  onSubmit: (h: InstitutionInput) => void;
+  saving: boolean;
 }) {
   const [form, setForm] = useState({
-    code: editing?.code ?? "",
     name: editing?.name ?? "",
     email: editing?.email ?? "",
     phone: editing?.phone ?? "",
     address: editing?.address ?? "",
     city: editing?.city ?? "",
     province: editing?.province ?? "",
-    country: editing?.country ?? "Zimbabwe",
     bloodDeptContact: editing?.bloodDeptContact ?? "",
   });
 
@@ -262,17 +280,16 @@ function InstitutionDialog({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const emptyStock = BLOOD_GROUPS.reduce(
-      (acc, g) => ({ ...acc, [g]: 0 }),
-      {} as Record<BloodGroup, number>,
-    );
-    const prefix = type === "hospital" ? "h_" : "l_";
+    const opt = (v: string) => v.trim() || undefined;
     onSubmit({
-      id: editing?.id ?? `${prefix}${Date.now()}`,
       type,
-      status: editing?.status ?? "active",
-      stock: editing?.stock ?? emptyStock,
-      ...form,
+      name: form.name.trim(),
+      city: form.city.trim(),
+      province: form.province.trim(),
+      email: opt(form.email),
+      phone: opt(form.phone),
+      address: opt(form.address),
+      bloodDeptContact: opt(form.bloodDeptContact),
     });
   };
 
@@ -292,29 +309,23 @@ function InstitutionDialog({
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Name" required value={form.name} onChange={set("name")} />
-            <Field label="Code" required value={form.code} onChange={set("code")} placeholder="e.g. SJMC-05" />
+            <Field label="Blood dept. contact" value={form.bloodDeptContact} onChange={set("bloodDeptContact")} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Email" type="email" required value={form.email} onChange={set("email")} />
-            <Field label="Phone" required value={form.phone} onChange={set("phone")} />
+            <Field label="Email" type="email" value={form.email} onChange={set("email")} />
+            <Field label="Phone" value={form.phone} onChange={set("phone")} />
           </div>
           <Field label="Address" value={form.address} onChange={set("address")} />
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Field label="City" required value={form.city} onChange={set("city")} />
-            <Field label="Province" value={form.province} onChange={set("province")} />
-            <Field label="Country" value={form.country} onChange={set("country")} />
+            <Field label="Province" required value={form.province} onChange={set("province")} />
           </div>
-          <Field
-            label="Blood dept. contact"
-            value={form.bloodDeptContact}
-            onChange={set("bloodDeptContact")}
-          />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-blood hover:bg-blood-dark text-white">
-              {editing ? "Save changes" : `Register ${noun}`}
+            <Button type="submit" disabled={saving} className="bg-blood hover:bg-blood-dark text-white">
+              {saving ? "Saving..." : editing ? "Save changes" : `Register ${noun}`}
             </Button>
           </DialogFooter>
         </form>
