@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Building2, FlaskConical, Users, Droplet, TrendingUp, Activity as ActivityIcon } from "lucide-react";
+import { Building2, FlaskConical, Users, Droplet, Activity as ActivityIcon } from "lucide-react";
 import { StatCard } from "@/components/stat-card";
-import { HOSPITALS, ACTIVITY, BLOOD_GROUPS, totalStock } from "@/lib/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import { emptyStock, getAdminOverview, listAuditLogs, listInstitutions, timeAgo } from "@/lib/backend";
 import { BloodDistribution } from "@/components/blood-distribution";
 
 export const Route = createFileRoute("/_shell/admin/")({
@@ -15,33 +16,28 @@ export const Route = createFileRoute("/_shell/admin/")({
 });
 
 function AdminDashboard() {
-  const hospitals = HOSPITALS.filter((h) => h.type === "hospital");
-  const labs = HOSPITALS.filter((h) => h.type === "laboratory");
-
-  const nationalStock = BLOOD_GROUPS.reduce(
-    (acc, g) => {
-      acc[g] = HOSPITALS.reduce((s, h) => s + h.stock[g], 0);
-      return acc;
-    },
-    {} as Record<(typeof BLOOD_GROUPS)[number], number>,
-  );
-
-  const totalBags = HOSPITALS.reduce((s, h) => s + totalStock(h.stock), 0);
+  const overviewQ = useQuery({ queryKey: ["admin", "overview"], queryFn: getAdminOverview });
+  const instQ = useQuery({ queryKey: ["institutions", "all"], queryFn: () => listInstitutions() });
+  const logsQ = useQuery({ queryKey: ["admin", "audit"], queryFn: listAuditLogs });
+  const o = overviewQ.data;
+  const institutions = instQ.data ?? [];
+  const nationalStock = { ...emptyStock(), ...(o?.national_stock ?? {}) };
+  const logs = logsQ.data ?? [];
 
   return (
     <>
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">National Overview</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Live activity across {HOSPITALS.length} registered institutions.
+          {overviewQ.error ? (overviewQ.error as Error).message : `Live activity across ${institutions.length} registered institutions.`}
         </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-        <StatCard label="Total Hospitals" value={hospitals.length} icon={Building2} hint="Active" hintTone="success" />
-        <StatCard label="Total Laboratories" value={labs.length} icon={FlaskConical} hint="Active" hintTone="success" />
-        <StatCard label="Total Blood Bags" value={totalBags.toLocaleString()} icon={Droplet} hint="+3.1%" hintTone="success" />
-        <StatCard label="Active Users" value={148} icon={Users} hint="24 online" hintTone="muted" />
+        <StatCard label="Total Hospitals" value={o?.hospitals ?? "—"} icon={Building2} hint="Registered" hintTone="muted" />
+        <StatCard label="Total Laboratories" value={o?.laboratories ?? "—"} icon={FlaskConical} hint="Registered" hintTone="muted" />
+        <StatCard label="Total Blood Bags" value={o ? o.total_units.toLocaleString() : "—"} icon={Droplet} hint="Available nationally" hintTone="muted" />
+        <StatCard label="System Users" value={o?.users ?? "—"} icon={Users} hint={`${o?.pending_enquiries ?? 0} pending enquiries`} hintTone="muted" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
@@ -53,9 +49,6 @@ function AdminDashboard() {
                 Aggregated across all hospitals and laboratories
               </p>
             </div>
-            <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-              <TrendingUp className="size-3.5 text-emerald-600" /> +3.1% this week
-            </span>
           </div>
           <BloodDistribution stock={nationalStock} criticalThreshold={100} />
         </div>
@@ -65,10 +58,15 @@ function AdminDashboard() {
             <ActivityIcon className="size-4 text-blood" /> System Activity
           </h3>
           <ul className="space-y-5">
-            {ACTIVITY.map((a) => (
-              <li key={a.id} className="text-sm">
-                <p className="text-foreground leading-snug">{a.message}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">{a.timestamp}</p>
+            {logs.length === 0 && (
+              <li className="text-sm text-muted-foreground">{logsQ.isLoading ? "Loading..." : "No activity yet."}</li>
+            )}
+            {logs.map((a) => (
+              <li key={a._id} className="text-sm">
+                <p className="text-foreground leading-snug">
+                  {a.actorId?.fullName ?? "System"} · {a.action.replace(/[._]/g, " ")}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1">{timeAgo(a.createdAt)}</p>
               </li>
             ))}
           </ul>
@@ -89,14 +87,14 @@ function AdminDashboard() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {HOSPITALS.map((h) => (
+            {institutions.map((h) => (
               <tr key={h.id} className="hover:bg-muted/30">
                 <td className="px-6 py-3.5 font-medium text-foreground">{h.name}</td>
                 <td className="px-6 py-3.5 text-muted-foreground capitalize">{h.type}</td>
                 <td className="px-6 py-3.5 text-muted-foreground">
                   {h.city}, {h.province}
                 </td>
-                <td className="px-6 py-3.5 text-right font-mono">{totalStock(h.stock).toLocaleString()}</td>
+                <td className="px-6 py-3.5 text-right font-mono">{h.total_units.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
