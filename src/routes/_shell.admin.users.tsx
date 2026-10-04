@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, MoreHorizontal, Pencil, Power, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,10 +39,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { HOSPITALS } from "@/lib/mock-data";
+import {
+  createAdminUser,
+  deleteAdminUser,
+  listAdminUsers,
+  listInstitutions,
+  setAdminUserStatus,
+  updateAdminUser,
+  type AdminUserInput,
+} from "@/lib/backend";
 
 type SysRole = "Super Admin" | "Hospital Admin" | "Staff Member";
-type Status = "active" | "inactive";
+type Status = "active" | "suspended";
 
 interface SysUser {
   id: string;
@@ -49,18 +58,12 @@ interface SysUser {
   email: string;
   role: SysRole;
   tenant: string;
+  tenantId: string | null;
   status: Status;
 }
 
-const INITIAL: SysUser[] = [
-  { id: "u1", name: "Amara Nyathi", email: "amara@haemocentral.gov.zw", role: "Super Admin", tenant: "National Blood Service Zimbabwe", status: "active" },
-  { id: "u2", name: "Dr. Tendai Chikomo", email: "tendai.chikomo@parirenyatwa.co.zw", role: "Hospital Admin", tenant: "Parirenyatwa Group of Hospitals", status: "active" },
-  { id: "u3", name: "Dr. Rutendo Moyo", email: "rutendo@smch.co.zw", role: "Hospital Admin", tenant: "Sally Mugabe Central Hospital", status: "active" },
-  { id: "u4", name: "Rudo Mutasa", email: "rudo.mutasa@parirenyatwa.co.zw", role: "Staff Member", tenant: "Parirenyatwa Group of Hospitals", status: "active" },
-  { id: "u5", name: "Tawanda Sibanda", email: "tawanda@mpilo.co.zw", role: "Staff Member", tenant: "Mpilo Central Hospital", status: "inactive" },
-];
-
-const STORE_KEY = "haemocentral.sys_users";
+const ROLE_LABEL = { super_admin: "Super Admin", hospital_admin: "Hospital Admin", staff: "Staff Member" } as const;
+const ROLE_VALUE = { "Super Admin": "super_admin", "Hospital Admin": "hospital_admin", "Staff Member": "staff" } as const;
 
 export const Route = createFileRoute("/_shell/admin/users")({
   head: () => ({
@@ -73,27 +76,23 @@ export const Route = createFileRoute("/_shell/admin/users")({
 });
 
 function UsersPage() {
-  const [users, setUsers] = useState<SysUser[]>(() => {
-    if (typeof window === "undefined") return INITIAL;
-    try {
-      const raw = localStorage.getItem(STORE_KEY);
-      return raw ? (JSON.parse(raw) as SysUser[]) : INITIAL;
-    } catch {
-      return INITIAL;
-    }
-  });
+  const qc = useQueryClient();
+  const { data, isLoading, error } = useQuery({ queryKey: ["admin", "users"], queryFn: listAdminUsers });
+  const users: SysUser[] = (data ?? []).map((u) => ({
+    id: u._id,
+    name: u.fullName,
+    email: u.email,
+    role: ROLE_LABEL[u.role],
+    tenant: u.tenantId?.name ?? NATIONAL_TENANT,
+    tenantId: u.tenantId?._id ?? null,
+    status: u.status,
+  }));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SysUser | null>(null);
   const [deleting, setDeleting] = useState<SysUser | null>(null);
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(users));
-    } catch {
-      /* ignore */
-    }
-  }, [users]);
+  const refresh = () => qc.invalidateQueries({ queryKey: ["admin"] });
+  const fail = (e: Error) => toast.error("Action failed", { description: e.message });
 
   const openAdd = () => {
     setEditing(null);
@@ -103,20 +102,41 @@ function UsersPage() {
     setEditing(u);
     setDialogOpen(true);
   };
-  const toggleStatus = (u: SysUser) => {
-    setUsers((prev) =>
-      prev.map((x) =>
-        x.id === u.id ? { ...x, status: x.status === "active" ? "inactive" : "active" } : x,
-      ),
-    );
-    toast.success(`${u.name} ${u.status === "active" ? "deactivated" : "activated"}`);
-  };
+  const statusM = useMutation({
+    mutationFn: (u: SysUser) => setAdminUserStatus(u.id, u.status === "active" ? "suspend" : "activate"),
+    onSuccess: (_d, u) => {
+      toast.success(`${u.name} ${u.status === "active" ? "deactivated" : "activated"}`);
+      refresh();
+    },
+    onError: fail,
+  });
+  const toggleStatus = (u: SysUser) => statusM.mutate(u);
+  const deleteM = useMutation({
+    mutationFn: (u: SysUser) => deleteAdminUser(u.id),
+    onSuccess: (_d, u) => {
+      toast.success(`${u.name} removed`);
+      refresh();
+    },
+    onError: fail,
+  });
   const confirmDelete = () => {
     if (!deleting) return;
-    setUsers((prev) => prev.filter((x) => x.id !== deleting.id));
-    toast.success(`${deleting.name} removed`);
+    deleteM.mutate(deleting);
     setDeleting(null);
   };
+  const saveM = useMutation({
+    mutationFn: (body: AdminUserInput) => (editing ? updateAdminUser(editing.id, body) : createAdminUser(body)),
+    onSuccess: (res, body) => {
+      const temp = (res as { temporary_password?: string } | undefined)?.temporary_password;
+      toast.success(`${body.fullName} ${editing ? "updated" : "added"}`, {
+        description: temp ? `Temporary password: ${temp}` : undefined,
+        duration: temp ? 20000 : undefined,
+      });
+      setDialogOpen(false);
+      refresh();
+    },
+    onError: fail,
+  });
 
   const filtered = users.filter((u) => {
     const q = query.trim().toLowerCase();
@@ -169,7 +189,7 @@ function UsersPage() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-6 py-10 text-center text-sm text-muted-foreground">
-                  No users match your search.
+                  {isLoading ? "Loading..." : error ? (error as Error).message : "No users match your search."}
                 </td>
               </tr>
             )}
@@ -260,16 +280,7 @@ function UsersPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editing={editing}
-        onSubmit={(u) => {
-          if (editing) {
-            setUsers((prev) => prev.map((x) => (x.id === u.id ? u : x)));
-            toast.success(`${u.name} updated`);
-          } else {
-            setUsers((prev) => [u, ...prev]);
-            toast.success(`${u.name} added`);
-          }
-          setDialogOpen(false);
-        }}
+        onSubmit={(body) => saveM.mutate(body)}
       />
 
       <AlertDialog open={!!deleting} onOpenChange={(v) => !v && setDeleting(null)}>
@@ -306,28 +317,30 @@ function UserDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   editing: SysUser | null;
-  onSubmit: (u: SysUser) => void;
+  onSubmit: (u: AdminUserInput) => void;
 }) {
   const [form, setForm] = useState({
     name: editing?.name ?? "",
     email: editing?.email ?? "",
     role: editing?.role ?? ("Hospital Admin" as SysRole),
-    tenant: editing?.tenant ?? "",
+    tenant: editing?.tenantId ?? "",
   });
 
-  const hospitalOptions = HOSPITALS.filter((h) => h.type === "hospital").map((h) => h.name);
-
-  const tenantOptions = form.role === "Super Admin" ? [NATIONAL_TENANT] : hospitalOptions;
+  const instQ = useQuery({ queryKey: ["institutions", "all"], queryFn: () => listInstitutions() });
+  const tenantOptions = (instQ.data ?? []).map((i) => ({ id: i.id, name: i.name }));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const tenant =
-      form.role === "Super Admin" ? NATIONAL_TENANT : form.tenant || tenantOptions[0] || "";
+    const isSuper = form.role === "Super Admin";
+    if (!isSuper && !form.tenant) {
+      toast.error("Select an institution");
+      return;
+    }
     onSubmit({
-      id: editing?.id ?? `u_${Date.now()}`,
-      status: editing?.status ?? "active",
-      ...form,
-      tenant,
+      fullName: form.name.trim(),
+      email: form.email.trim(),
+      role: ROLE_VALUE[form.role],
+      tenantId: isSuper ? null : form.tenant,
     });
   };
 
@@ -370,7 +383,7 @@ function UserDialog({
                 setForm((f) => ({
                   ...f,
                   role: v as SysRole,
-                  tenant: v === "Super Admin" ? NATIONAL_TENANT : "",
+                  tenant: v === "Super Admin" ? "" : f.tenant,
                 }))
               }
             >
@@ -394,12 +407,12 @@ function UserDialog({
                 onValueChange={(v) => setForm((f) => ({ ...f, tenant: v }))}
               >
                 <SelectTrigger className="mt-1.5">
-                  <SelectValue placeholder="Select a hospital" />
+                  <SelectValue placeholder="Select an institution" />
                 </SelectTrigger>
                 <SelectContent>
-                  {tenantOptions.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
+                  {tenantOptions.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
