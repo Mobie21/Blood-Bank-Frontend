@@ -37,11 +37,18 @@ enquiryRouter.get(
   validate(listEnquiriesQuery, "query"),
   asyncHandler(async (req, res) => {
     const q = req.query as unknown as Pagination & { direction?: string; status?: string; kind?: string };
-    const tenant = new Types.ObjectId(tenantScope(req));
+    const ctx = auth(req);
     const filter: Record<string, unknown> = {};
-    if (q.direction === "sent") filter.fromTenantId = tenant;
-    else if (q.direction === "received") filter.toTenantId = tenant;
-    else filter.$or = [{ fromTenantId: tenant }, { toTenantId: tenant }];
+    const nationalView = ctx.role === "super_admin" && !ctx.tenantId && !req.query.tenant_id;
+    if (!nationalView) {
+      const tenant = new Types.ObjectId(tenantScope(req));
+      if (q.direction === "sent") filter.fromTenantId = tenant;
+      else if (q.direction === "received") filter.toTenantId = tenant;
+      else filter.$or = [{ fromTenantId: tenant }, { toTenantId: tenant }];
+    } else if (q.direction === "sent") {
+      // National view: "sent" tab is empty since the national office doesn't send enquiries
+      filter._id = null;
+    }
     if (q.status) filter.status = q.status;
     if (q.kind) filter.kind = q.kind;
     if (q.q) filter.reference = { $regex: q.q, $options: "i" };
